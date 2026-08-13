@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/"
+title = "EnglishMate AI"
+description = "A beginner-friendly English learning mobile app for Sinhala, Tamil, and English speakers, with guided lessons, A-Z writing practice, tests, AI speaking practice scaffolding, downloads, and local progress tracking."
+version = "1.0.0"
+id = "artifacts/englishmate-ai"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 25186
+
+[services.development]
+run = "pnpm --filter @workspace/englishmate-ai run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/englishmate-ai", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/englishmate-ai", "run", "serve" ]
+
+[services.env]
+PORT = "25186"
+BASE_PATH = "/"
