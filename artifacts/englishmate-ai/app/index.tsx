@@ -51,23 +51,94 @@ const lessons: Lesson[] = [
   { id: 10, title: 'A simple day', focus: 'Review & connect', explanation: { en: 'Join your new words to describe a simple day.', si: 'ඔබේ නව වචන එකතු කර සරල දවසක් විස්තර කරන්න.', ta: 'உங்கள் புதிய சொற்களை இணைத்து ஒரு எளிய நாளை விவரியுங்கள்.' }, vocabulary: ['morning', 'eat', 'go', 'home'], examples: ['I eat in the morning.', 'I go home.'], question: 'Complete: I go ___.', answer: 'home' },
 ];
 
-const alphabet = [
-  ['A', 'a', 'apple'], ['B', 'b', 'book'], ['C', 'c', 'cat'], ['D', 'd', 'dog'], ['E', 'e', 'egg'], ['F', 'f', 'fish'],
-  ['G', 'g', 'goat'], ['H', 'h', 'hat'], ['I', 'i', 'ice'], ['J', 'j', 'jam'], ['K', 'k', 'kite'], ['L', 'l', 'lion'],
-  ['M', 'm', 'moon'], ['N', 'n', 'nose'], ['O', 'o', 'orange'], ['P', 'p', 'pen'], ['Q', 'q', 'queen'], ['R', 'r', 'rain'],
-  ['S', 's', 'sun'], ['T', 't', 'tree'], ['U', 'u', 'umbrella'], ['V', 'v', 'van'], ['W', 'w', 'water'], ['X', 'x', 'box'],
-  ['Y', 'y', 'yellow'], ['Z', 'z', 'zebra'],
+type AlphabetEntry = { upper: string; lower: string; name: string; guide: string; words: string[]; sentence: string };
+type WordExercise = { kind: 'match' | 'missing' | 'choose' | 'type'; prompt: string; answer: string; options?: string[]; hint: string };
+type SentenceExercise = { starter: string; prompt: string; answer: string; example: string };
+type GrammarExercise = { id: string; title: string; prompt: string; answer: string; options: string[] };
+type ParagraphTopic = { id: string; title: string; prompt: string; better: string };
+
+const alphabet: AlphabetEntry[] = [
+  { upper: 'A', lower: 'a', name: 'ay', guide: 'A as in apple', words: ['apple', 'ant', 'alligator'], sentence: 'This is an apple.' },
+  { upper: 'B', lower: 'b', name: 'bee', guide: 'B as in book', words: ['book', 'ball', 'bird'], sentence: 'I have a book.' },
+  { upper: 'C', lower: 'c', name: 'see', guide: 'C as in cat', words: ['cat', 'cup', 'car'], sentence: 'The cat is small.' },
+  { upper: 'D', lower: 'd', name: 'dee', guide: 'D as in dog', words: ['dog', 'door', 'day'], sentence: 'The dog can run.' },
+  { upper: 'E', lower: 'e', name: 'ee', guide: 'E as in egg', words: ['egg', 'elephant', 'eye'], sentence: 'I eat an egg.' },
+  { upper: 'F', lower: 'f', name: 'ef', guide: 'F as in fish', words: ['fish', 'fan', 'food'], sentence: 'I like fish.' },
+  { upper: 'G', lower: 'g', name: 'gee', guide: 'G as in goat', words: ['goat', 'girl', 'game'], sentence: 'The goat is white.' },
+  { upper: 'H', lower: 'h', name: 'aitch', guide: 'H as in hat', words: ['hat', 'hand', 'home'], sentence: 'This is my hat.' },
+  { upper: 'I', lower: 'i', name: 'eye', guide: 'I as in ice', words: ['ice', 'ink', 'insect'], sentence: 'The ice is cold.' },
+  { upper: 'J', lower: 'j', name: 'jay', guide: 'J as in jam', words: ['jam', 'juice', 'jump'], sentence: 'I like jam.' },
+  { upper: 'K', lower: 'k', name: 'kay', guide: 'K as in kite', words: ['kite', 'king', 'key'], sentence: 'The kite is high.' },
+  { upper: 'L', lower: 'l', name: 'el', guide: 'L as in lion', words: ['lion', 'leg', 'lamp'], sentence: 'The lion is big.' },
+  { upper: 'M', lower: 'm', name: 'em', guide: 'M as in moon', words: ['moon', 'man', 'milk'], sentence: 'I drink milk.' },
+  { upper: 'N', lower: 'n', name: 'en', guide: 'N as in nose', words: ['nose', 'name', 'night'], sentence: 'My name is Nimal.' },
+  { upper: 'O', lower: 'o', name: 'oh', guide: 'O as in orange', words: ['orange', 'open', 'ocean'], sentence: 'I eat an orange.' },
+  { upper: 'P', lower: 'p', name: 'pee', guide: 'P as in pen', words: ['pen', 'paper', 'pink'], sentence: 'This is a pen.' },
+  { upper: 'Q', lower: 'q', name: 'cue', guide: 'Q as in queen', words: ['queen', 'quiet', 'question'], sentence: 'I have a question.' },
+  { upper: 'R', lower: 'r', name: 'ar', guide: 'R as in rain', words: ['rain', 'red', 'read'], sentence: 'I read a book.' },
+  { upper: 'S', lower: 's', name: 'ess', guide: 'S as in sun', words: ['sun', 'school', 'star'], sentence: 'The sun is hot.' },
+  { upper: 'T', lower: 't', name: 'tee', guide: 'T as in tree', words: ['tree', 'tea', 'table'], sentence: 'I drink tea.' },
+  { upper: 'U', lower: 'u', name: 'you', guide: 'U as in umbrella', words: ['umbrella', 'under', 'up'], sentence: 'The umbrella is blue.' },
+  { upper: 'V', lower: 'v', name: 'vee', guide: 'V as in van', words: ['van', 'vegetable', 'voice'], sentence: 'The van is fast.' },
+  { upper: 'W', lower: 'w', name: 'double-you', guide: 'W as in water', words: ['water', 'woman', 'window'], sentence: 'I drink water.' },
+  { upper: 'X', lower: 'x', name: 'ex', guide: 'X as in box', words: ['box', 'fox', 'six'], sentence: 'The box is red.' },
+  { upper: 'Y', lower: 'y', name: 'why', guide: 'Y as in yellow', words: ['yellow', 'yes', 'young'], sentence: 'Yellow is a colour.' },
+  { upper: 'Z', lower: 'z', name: 'zee', guide: 'Z as in zebra', words: ['zebra', 'zero', 'zoo'], sentence: 'The zebra is black and white.' },
+];
+
+const wordExercises: WordExercise[] = [
+  { kind: 'match', prompt: 'Which word is a fruit?', answer: 'apple', options: ['apple', 'book', 'chair'], hint: 'A fruit is food.' },
+  { kind: 'missing', prompt: 'Complete the word: c_t', answer: 'cat', hint: 'A cat is an animal.' },
+  { kind: 'choose', prompt: 'I read a ___.', answer: 'book', options: ['book', 'fish', 'milk'], hint: 'You read it.' },
+  { kind: 'type', prompt: 'Type the word: b__k', answer: 'book', hint: 'You read this.' },
+  { kind: 'missing', prompt: 'Complete the word: s_n', answer: 'sun', hint: 'It is in the sky.' },
+  { kind: 'type', prompt: 'Type the word for a drink: w_t_r', answer: 'water', hint: 'We drink it every day.' },
+];
+
+const sentenceExercises: SentenceExercise[] = [
+  { starter: 'I am…', prompt: 'Complete: I ___ happy.', answer: 'am', example: 'I am happy.' },
+  { starter: 'You are…', prompt: 'Complete: You ___ my friend.', answer: 'are', example: 'You are my friend.' },
+  { starter: 'This is…', prompt: 'Complete: This ___ a pen.', answer: 'is', example: 'This is a pen.' },
+  { starter: 'I have…', prompt: 'Complete: I ___ a book.', answer: 'have', example: 'I have a book.' },
+  { starter: 'I like…', prompt: 'Complete: I ___ tea.', answer: 'like', example: 'I like tea.' },
+  { starter: 'I want…', prompt: 'Complete: I ___ water.', answer: 'want', example: 'I want water.' },
+  { starter: 'I can…', prompt: 'Complete: I ___ swim.', answer: 'can', example: 'I can swim.' },
+  { starter: 'I went…', prompt: 'Yesterday, I ___ to school.', answer: 'went', example: 'I went to school yesterday.' },
+  { starter: 'I will…', prompt: 'Tomorrow, I ___ study.', answer: 'will', example: 'I will study tomorrow.' },
+];
+
+const grammarExercises: GrammarExercise[] = [
+  { id: 'nouns', title: 'Nouns', prompt: 'Choose the noun: The ___ is red.', answer: 'ball', options: ['ball', 'run', 'quickly'] },
+  { id: 'pronouns', title: 'Pronouns', prompt: '___ is my sister.', answer: 'She', options: ['She', 'They', 'It'] },
+  { id: 'verbs', title: 'Verb basics', prompt: 'I ___ a book.', answer: 'read', options: ['read', 'book', 'happy'] },
+  { id: 'present', title: 'Present tense', prompt: 'I ___ tea every day.', answer: 'drink', options: ['drink', 'drank', 'will drink'] },
+  { id: 'past', title: 'Past tense', prompt: 'Yesterday, I ___ home.', answer: 'went', options: ['go', 'went', 'will go'] },
+  { id: 'future', title: 'Future tense', prompt: 'Tomorrow, I ___ study.', answer: 'will', options: ['am', 'went', 'will'] },
+  { id: 'articles', title: 'A / an / the', prompt: 'I eat ___ apple.', answer: 'an', options: ['a', 'an', 'the'] },
+  { id: 'plural', title: 'Singular & plural', prompt: 'Two ___ are on the table.', answer: 'books', options: ['book', 'books', 'bookes'] },
+  { id: 'prepositions', title: 'Prepositions', prompt: 'The book is ___ the table.', answer: 'on', options: ['on', 'eat', 'happy'] },
+  { id: 'questions', title: 'Questions', prompt: '___ is your name?', answer: 'What', options: ['What', 'Are', 'The'] },
+];
+
+const paragraphTopics: ParagraphTopic[] = [
+  { id: 'myself', title: 'About Myself', prompt: 'Write 2–3 short sentences about your name, home, or age.', better: 'My name is Nimal. I live in Colombo. I am learning English.' },
+  { id: 'family', title: 'My Family', prompt: 'Write 2–3 short sentences about your family.', better: 'I have a small family. I live with my mother and brother.' },
+  { id: 'school', title: 'My School', prompt: 'Write 2–3 short sentences about your school.', better: 'My school is near my home. I like my English class.' },
+  { id: 'job', title: 'My Job', prompt: 'Write 2–3 short sentences about your job or work.', better: 'I work in a shop. I meet many people every day.' },
+  { id: 'routine', title: 'My Daily Routine', prompt: 'Write 2–3 short sentences about your day.', better: 'I wake up in the morning. I eat breakfast and go to work.' },
+  { id: 'food', title: 'My Favourite Food', prompt: 'Write 2–3 short sentences about food you like.', better: 'My favourite food is rice. I like it with vegetables.' },
+  { id: 'hobby', title: 'My Hobby', prompt: 'Write 2–3 short sentences about a hobby.', better: 'My hobby is reading. I read a book at night.' },
 ];
 
 const copy = {
   en: {
-    home: 'Home', lessons: 'Lessons', practice: 'Practice', progress: 'Progress', downloads: 'Downloads', hello: 'Hello, learner', subtitle: 'Small steps. Strong English.', continue: 'Continue learning', speaking: 'Speaking practice', writing: 'Writing practice', start: 'Start', viewAll: 'View all', yourProgress: 'Your progress', completed: 'completed', currentLevel: 'Current level', beginner: 'Level 1 · Beginner', chooseLanguage: 'Choose your language', quickPractice: 'Quick practice', learnAZ: 'Learn A–Z', lessonProgress: 'Lesson progress', lesson: 'Lesson', vocabulary: 'Vocabulary', examples: 'Example sentences', explanation: 'Simple explanation', practiceQuestions: 'Practice question', completeLesson: 'Complete lesson', next: 'Next', test: 'Test', testIntro: 'Show what you know. Choose the best answer.', submit: 'Check answer', score: 'Your score', done: 'Done', tryAgain: 'Try again', startTest: 'Start test', aiSpeaking: 'AI Speaking Practice', speakingHint: 'Talk with your friendly English teacher. Your future AI connection can plug into this conversation.', teacher: 'Teacher', you: 'You', send: 'Send', writingTitle: 'Writing practice', writingHint: 'Write a little every day. We will help you improve.', letters: 'A–Z', words: 'Words', sentences: 'Sentences', grammar: 'Grammar', paragraph: 'Paragraph', prompt: 'Try writing here...', checkWriting: 'Check my writing', correct: 'Correct sentence', mistake: 'Mistake explanation', suggestion: 'Simple improvement', downloadsTitle: 'Your downloads', downloadsHint: 'Keep lessons close, even when you are offline.', pdf: 'Lesson PDF', audio: 'Spoken English MP3', sample: 'Sample file', ready: 'Ready for future files', progressTitle: 'Your learning journey', lessonsDone: 'Lessons completed', testsDone: 'Tests completed', speakingDone: 'Speaking sessions', writingDone: 'Writing practices', noProgress: 'Start your first lesson to see progress here.', noTest: 'No test score yet', languageShort: 'EN', back: 'Back', listen: 'Listen', word: 'Word', pronunciation: 'Say it like', sentence: 'Sentence', encouragement: 'Great effort! Keep going.', level: 'Level 1', testOne: 'Test 1', testTwo: 'Test 2', selectLanguage: 'Language', saved: 'Saved on this device',
+    home: 'Home', lessons: 'Lessons', practice: 'Practice', progress: 'Progress', downloads: 'Downloads', hello: 'Hello, learner', subtitle: 'Small steps. Strong English.', continue: 'Continue learning', speaking: 'Speaking practice', writing: 'Writing practice', start: 'Start', viewAll: 'View all', yourProgress: 'Your progress', completed: 'completed', currentLevel: 'Current level', beginner: 'Level 1 · Beginner', chooseLanguage: 'Choose your language', quickPractice: 'Quick practice', learnAZ: 'Learn A–Z', lessonProgress: 'Lesson progress', lesson: 'Lesson', vocabulary: 'Vocabulary', examples: 'Example sentences', explanation: 'Simple explanation', practiceQuestions: 'Practice question', completeLesson: 'Complete lesson', next: 'Next', test: 'Test', testIntro: 'Show what you know. Choose the best answer.', submit: 'Check answer', score: 'Your score', done: 'Done', tryAgain: 'Try again', startTest: 'Start test', aiSpeaking: 'AI Speaking Practice', speakingHint: 'Talk with your friendly English teacher. Your future AI connection can plug into this conversation.', teacher: 'Teacher', you: 'You', send: 'Send', writingTitle: 'Writing practice', writingCorrection: 'Correct my writing', writingHint: 'Write a little every day. We will help you improve.', letters: 'A–Z', words: 'Words', sentences: 'Sentences', grammar: 'Grammar', paragraph: 'Paragraph', prompt: 'Try writing here...', checkWriting: 'Check my writing', correct: 'Correct sentence', mistake: 'Mistake explanation', suggestion: 'Simple improvement', downloadsTitle: 'Your downloads', downloadsHint: 'Keep lessons close, even when you are offline.', pdf: 'Lesson PDF', audio: 'Spoken English MP3', sample: 'Sample file', ready: 'Ready for future files', progressTitle: 'Your learning journey', lessonsDone: 'Lessons completed', testsDone: 'Tests completed', speakingDone: 'Speaking sessions', writingDone: 'Writing practices', noProgress: 'Start your first lesson to see progress here.', noTest: 'No test score yet', languageShort: 'EN', back: 'Back', listen: 'Listen', word: 'Word', pronunciation: 'Say it like', sentence: 'Sentence', encouragement: 'Great effort! Keep going.', level: 'Level 1', testOne: 'Test 1', testTwo: 'Test 2', selectLanguage: 'Language', saved: 'Saved on this device',
   },
   si: {
-    home: 'මුල් පිටුව', lessons: 'පාඩම්', practice: 'පුහුණුව', progress: 'ප්‍රගතිය', downloads: 'බාගැනීම්', hello: 'ආයුබෝවන්, සිසුවා', subtitle: 'කුඩා පියවර. ශක්තිමත් ඉංග්‍රීසි.', continue: 'ඉගෙනීම දිගටම', speaking: 'කතා පුහුණුව', writing: 'ලිවීමේ පුහුණුව', start: 'ආරම්භ කරන්න', viewAll: 'සියල්ල බලන්න', yourProgress: 'ඔබේ ප්‍රගතිය', completed: 'සම්පූර්ණයි', currentLevel: 'දැනට මට්ටම', beginner: 'මට්ටම 1 · ආරම්භක', chooseLanguage: 'ඔබේ භාෂාව තෝරන්න', quickPractice: 'ඉක්මන් පුහුණුව', learnAZ: 'A–Z ඉගෙන ගන්න', lessonProgress: 'පාඩම් ප්‍රගතිය', lesson: 'පාඩම', vocabulary: 'වචන', examples: 'උදාහරණ වාක්‍ය', explanation: 'සරල පැහැදිලි කිරීම', practiceQuestions: 'පුහුණු ප්‍රශ්නය', completeLesson: 'පාඩම සම්පූර්ණ කරන්න', next: 'ඊළඟ', test: 'පරීක්ෂණය', testIntro: 'ඔබ දන්නා දේ පෙන්වන්න. හොඳම පිළිතුර තෝරන්න.', submit: 'පිළිතුර පරීක්ෂා කරන්න', score: 'ඔබේ ලකුණු', done: 'අවසන්', tryAgain: 'නැවත උත්සාහ කරන්න', startTest: 'පරීක්ෂණය ආරම්භ කරන්න', aiSpeaking: 'AI කතා පුහුණුව', speakingHint: 'ඔබේ හිතවත් ඉංග්‍රීසි ගුරුවරයා සමඟ කතා කරන්න. අනාගත AI සම්බන්ධතාවය මෙයට එක් කළ හැක.', teacher: 'ගුරුවරයා', you: 'ඔබ', send: 'යවන්න', writingTitle: 'ලිවීමේ පුහුණුව', writingHint: 'සෑම දිනකම ටිකක් ලියන්න. අපි ඔබට දියුණු වීමට උදව් කරමු.', letters: 'A–Z', words: 'වචන', sentences: 'වාක්‍ය', grammar: 'ව්‍යාකරණ', paragraph: 'ඡේදය', prompt: 'මෙහි ලියන්න...', checkWriting: 'මගේ ලිවීම පරීක්ෂා කරන්න', correct: 'නිවැරදි වාක්‍යය', mistake: 'වැරදි පැහැදිලි කිරීම', suggestion: 'සරල වැඩිදියුණු කිරීම', downloadsTitle: 'ඔබේ බාගැනීම්', downloadsHint: 'අන්තර්ජාලය නැති විටත් පාඩම් ළඟ තබා ගන්න.', pdf: 'පාඩම් PDF', audio: 'කතා ඉංග්‍රීසි MP3', sample: 'ආදර්ශ ගොනුව', ready: 'අනාගත ගොනු සඳහා සූදානම්', progressTitle: 'ඔබේ ඉගෙනුම් ගමන', lessonsDone: 'සම්පූර්ණ කළ පාඩම්', testsDone: 'සම්පූර්ණ කළ පරීක්ෂණ', speakingDone: 'කතා සැසි', writingDone: 'ලිවීම් පුහුණු', noProgress: 'ඔබේ පළමු පාඩම ආරම්භ කළ විට ප්‍රගතිය මෙහි පෙන්වයි.', noTest: 'තවම පරීක්ෂණ ලකුණු නැත', languageShort: 'සිං', back: 'ආපසු', listen: 'අසන්න', word: 'වචනය', pronunciation: 'කියන්නේ මෙහෙමයි', sentence: 'වාක්‍යය', encouragement: 'හොඳ උත්සාහයක්! දිගටම යන්න.', level: 'මට්ටම 1', testOne: 'පරීක්ෂණය 1', testTwo: 'පරීක්ෂණය 2', selectLanguage: 'භාෂාව', saved: 'මෙම උපාංගයේ සුරැකේ',
+    home: 'මුල් පිටුව', lessons: 'පාඩම්', practice: 'පුහුණුව', progress: 'ප්‍රගතිය', downloads: 'බාගැනීම්', hello: 'ආයුබෝවන්, සිසුවා', subtitle: 'කුඩා පියවර. ශක්තිමත් ඉංග්‍රීසි.', continue: 'ඉගෙනීම දිගටම', speaking: 'කතා පුහුණුව', writing: 'ලිවීමේ පුහුණුව', start: 'ආරම්භ කරන්න', viewAll: 'සියල්ල බලන්න', yourProgress: 'ඔබේ ප්‍රගතිය', completed: 'සම්පූර්ණයි', currentLevel: 'දැනට මට්ටම', beginner: 'මට්ටම 1 · ආරම්භක', chooseLanguage: 'ඔබේ භාෂාව තෝරන්න', quickPractice: 'ඉක්මන් පුහුණුව', learnAZ: 'A–Z ඉගෙන ගන්න', lessonProgress: 'පාඩම් ප්‍රගතිය', lesson: 'පාඩම', vocabulary: 'වචන', examples: 'උදාහරණ වාක්‍ය', explanation: 'සරල පැහැදිලි කිරීම', practiceQuestions: 'පුහුණු ප්‍රශ්නය', completeLesson: 'පාඩම සම්පූර්ණ කරන්න', next: 'ඊළඟ', test: 'පරීක්ෂණය', testIntro: 'ඔබ දන්නා දේ පෙන්වන්න. හොඳම පිළිතුර තෝරන්න.', submit: 'පිළිතුර පරීක්ෂා කරන්න', score: 'ඔබේ ලකුණු', done: 'අවසන්', tryAgain: 'නැවත උත්සාහ කරන්න', startTest: 'පරීක්ෂණය ආරම්භ කරන්න', aiSpeaking: 'AI කතා පුහුණුව', speakingHint: 'ඔබේ හිතවත් ඉංග්‍රීසි ගුරුවරයා සමඟ කතා කරන්න. අනාගත AI සම්බන්ධතාවය මෙයට එක් කළ හැක.', teacher: 'ගුරුවරයා', you: 'ඔබ', send: 'යවන්න', writingTitle: 'ලිවීමේ පුහුණුව', writingCorrection: 'මගේ ලිවීම නිවැරදි කරන්න', writingHint: 'සෑම දිනකම ටිකක් ලියන්න. අපි ඔබට දියුණු වීමට උදව් කරමු.', letters: 'A–Z', words: 'වචන', sentences: 'වාක්‍ය', grammar: 'ව්‍යාකරණ', paragraph: 'ඡේදය', prompt: 'මෙහි ලියන්න...', checkWriting: 'මගේ ලිවීම පරීක්ෂා කරන්න', correct: 'නිවැරදි වාක්‍යය', mistake: 'වැරදි පැහැදිලි කිරීම', suggestion: 'සරල වැඩිදියුණු කිරීම', downloadsTitle: 'ඔබේ බාගැනීම්', downloadsHint: 'අන්තර්ජාලය නැති විටත් පාඩම් ළඟ තබා ගන්න.', pdf: 'පාඩම් PDF', audio: 'කතා ඉංග්‍රීසි MP3', sample: 'ආදර්ශ ගොනුව', ready: 'අනාගත ගොනු සඳහා සූදානම්', progressTitle: 'ඔබේ ඉගෙනුම් ගමන', lessonsDone: 'සම්පූර්ණ කළ පාඩම්', testsDone: 'සම්පූර්ණ කළ පරීක්ෂණ', speakingDone: 'කතා සැසි', writingDone: 'ලිවීම් පුහුණු', noProgress: 'ඔබේ පළමු පාඩම ආරම්භ කළ විට ප්‍රගතිය මෙහි පෙන්වයි.', noTest: 'තවම පරීක්ෂණ ලකුණු නැත', languageShort: 'සිං', back: 'ආපසු', listen: 'අසන්න', word: 'වචනය', pronunciation: 'කියන්නේ මෙහෙමයි', sentence: 'වාක්‍යය', encouragement: 'හොඳ උත්සාහයක්! දිගටම යන්න.', level: 'මට්ටම 1', testOne: 'පරීක්ෂණය 1', testTwo: 'පරීක්ෂණය 2', selectLanguage: 'භාෂාව', saved: 'මෙම උපාංගයේ සුරැකේ',
   },
   ta: {
-    home: 'முகப்பு', lessons: 'பாடங்கள்', practice: 'பயிற்சி', progress: 'முன்னேற்றம்', downloads: 'பதிவிறக்கங்கள்', hello: 'வணக்கம், மாணவரே', subtitle: 'சிறிய படிகள். நல்ல ஆங்கிலம்.', continue: 'கற்றலைத் தொடருங்கள்', speaking: 'பேச்சுப் பயிற்சி', writing: 'எழுத்துப் பயிற்சி', start: 'தொடங்குங்கள்', viewAll: 'அனைத்தையும் காண்க', yourProgress: 'உங்கள் முன்னேற்றம்', completed: 'முடிந்தது', currentLevel: 'தற்போதைய நிலை', beginner: 'நிலை 1 · தொடக்கநிலை', chooseLanguage: 'உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்', quickPractice: 'விரைவு பயிற்சி', learnAZ: 'A–Z கற்றல்', lessonProgress: 'பாட முன்னேற்றம்', lesson: 'பாடம்', vocabulary: 'சொற்கள்', examples: 'எடுத்துக்காட்டு வாக்கியங்கள்', explanation: 'எளிய விளக்கம்', practiceQuestions: 'பயிற்சி கேள்வி', completeLesson: 'பாடத்தை முடிக்கவும்', next: 'அடுத்து', test: 'சோதனை', testIntro: 'உங்களுக்குத் தெரிந்ததை காட்டுங்கள். சிறந்த பதிலைத் தேர்ந்தெடுக்கவும்.', submit: 'பதிலைச் சரிபார்க்கவும்', score: 'உங்கள் மதிப்பெண்', done: 'முடிந்தது', tryAgain: 'மீண்டும் முயற்சி', startTest: 'சோதனையைத் தொடங்குங்கள்', aiSpeaking: 'AI பேச்சுப் பயிற்சி', speakingHint: 'உங்கள் நட்பான ஆங்கில ஆசிரியருடன் பேசுங்கள். எதிர்கால AI இணைப்பை இந்த உரையாடலில் சேர்க்கலாம்.', teacher: 'ஆசிரியர்', you: 'நீங்கள்', send: 'அனுப்பவும்', writingTitle: 'எழுத்துப் பயிற்சி', writingHint: 'ஒவ்வொரு நாளும் கொஞ்சம் எழுதுங்கள். முன்னேற நாங்கள் உதவுவோம்.', letters: 'A–Z', words: 'சொற்கள்', sentences: 'வாக்கியங்கள்', grammar: 'இலக்கணம்', paragraph: 'பத்தி', prompt: 'இங்கே எழுதுங்கள்...', checkWriting: 'என் எழுத்தைச் சரிபார்க்கவும்', correct: 'சரியான வாக்கியம்', mistake: 'தவறு விளக்கம்', suggestion: 'எளிய மேம்பாடு', downloadsTitle: 'உங்கள் பதிவிறக்கங்கள்', downloadsHint: 'இணையம் இல்லாவிட்டாலும் பாடங்களை அருகில் வைத்திருங்கள்.', pdf: 'பாட PDF', audio: 'பேசும் ஆங்கில MP3', sample: 'மாதிரி கோப்பு', ready: 'எதிர்கால கோப்புகளுக்குத் தயார்', progressTitle: 'உங்கள் கற்றல் பயணம்', lessonsDone: 'முடிந்த பாடங்கள்', testsDone: 'முடிந்த சோதனைகள்', speakingDone: 'பேச்சு அமர்வுகள்', writingDone: 'எழுத்துப் பயிற்சிகள்', noProgress: 'உங்கள் முதல் பாடத்தைத் தொடங்கினால் முன்னேற்றம் இங்கே தோன்றும்.', noTest: 'சோதனை மதிப்பெண் இல்லை', languageShort: 'த', back: 'பின்', listen: 'கேளுங்கள்', word: 'சொல்', pronunciation: 'இப்படிச் சொல்லுங்கள்', sentence: 'வாக்கியம்', encouragement: 'நல்ல முயற்சி! தொடர்ந்து செல்லுங்கள்.', level: 'நிலை 1', testOne: 'சோதனை 1', testTwo: 'சோதனை 2', selectLanguage: 'மொழி', saved: 'இந்த சாதனத்தில் சேமிக்கப்பட்டது',
+    home: 'முகப்பு', lessons: 'பாடங்கள்', practice: 'பயிற்சி', progress: 'முன்னேற்றம்', downloads: 'பதிவிறக்கங்கள்', hello: 'வணக்கம், மாணவரே', subtitle: 'சிறிய படிகள். நல்ல ஆங்கிலம்.', continue: 'கற்றலைத் தொடருங்கள்', speaking: 'பேச்சுப் பயிற்சி', writing: 'எழுத்துப் பயிற்சி', start: 'தொடங்குங்கள்', viewAll: 'அனைத்தையும் காண்க', yourProgress: 'உங்கள் முன்னேற்றம்', completed: 'முடிந்தது', currentLevel: 'தற்போதைய நிலை', beginner: 'நிலை 1 · தொடக்கநிலை', chooseLanguage: 'உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்', quickPractice: 'விரைவு பயிற்சி', learnAZ: 'A–Z கற்றல்', lessonProgress: 'பாட முன்னேற்றம்', lesson: 'பாடம்', vocabulary: 'சொற்கள்', examples: 'எடுத்துக்காட்டு வாக்கியங்கள்', explanation: 'எளிய விளக்கம்', practiceQuestions: 'பயிற்சி கேள்வி', completeLesson: 'பாடத்தை முடிக்கவும்', next: 'அடுத்து', test: 'சோதனை', testIntro: 'உங்களுக்குத் தெரிந்ததை காட்டுங்கள். சிறந்த பதிலைத் தேர்ந்தெடுக்கவும்.', submit: 'பதிலைச் சரிபார்க்கவும்', score: 'உங்கள் மதிப்பெண்', done: 'முடிந்தது', tryAgain: 'மீண்டும் முயற்சி', startTest: 'சோதனையைத் தொடங்குங்கள்', aiSpeaking: 'AI பேச்சுப் பயிற்சி', speakingHint: 'உங்கள் நட்பான ஆங்கில ஆசிரியருடன் பேசுங்கள். எதிர்கால AI இணைப்பை இந்த உரையாடலில் சேர்க்கலாம்.', teacher: 'ஆசிரியர்', you: 'நீங்கள்', send: 'அனுப்பவும்', writingTitle: 'எழுத்துப் பயிற்சி', writingCorrection: 'என் எழுத்தைச் சரிசெய்யவும்', writingHint: 'ஒவ்வொரு நாளும் கொஞ்சம் எழுதுங்கள். முன்னேற நாங்கள் உதவுவோம்.', letters: 'A–Z', words: 'சொற்கள்', sentences: 'வாக்கியங்கள்', grammar: 'இலக்கணம்', paragraph: 'பத்தி', prompt: 'இங்கே எழுதுங்கள்...', checkWriting: 'என் எழுத்தைச் சரிபார்க்கவும்', correct: 'சரியான வாக்கியம்', mistake: 'தவறு விளக்கம்', suggestion: 'எளிய மேம்பாடு', downloadsTitle: 'உங்கள் பதிவிறக்கங்கள்', downloadsHint: 'இணையம் இல்லாவிட்டாலும் பாடங்களை அருகில் வைத்திருங்கள்.', pdf: 'பாட PDF', audio: 'பேசும் ஆங்கில MP3', sample: 'மாதிரி கோப்பு', ready: 'எதிர்கால கோப்புகளுக்குத் தயார்', progressTitle: 'உங்கள் கற்றல் பயணம்', lessonsDone: 'முடிந்த பாடங்கள்', testsDone: 'முடிந்த சோதனைகள்', speakingDone: 'பேச்சு அமர்வுகள்', writingDone: 'எழுத்துப் பயிற்சிகள்', noProgress: 'உங்கள் முதல் பாடத்தைத் தொடங்கினால் முன்னேற்றம் இங்கே தோன்றும்.', noTest: 'சோதனை மதிப்பெண் இல்லை', languageShort: 'த', back: 'பின்', listen: 'கேளுங்கள்', word: 'சொல்', pronunciation: 'இப்படிச் சொல்லுங்கள்', sentence: 'வாக்கியம்', encouragement: 'நல்ல முயற்சி! தொடர்ந்து செல்லுங்கள்.', level: 'நிலை 1', testOne: 'சோதனை 1', testTwo: 'சோதனை 2', selectLanguage: 'மொழி', saved: 'இந்த சாதனத்தில் சேமிக்கப்பட்டது',
   },
 };
 
@@ -108,6 +179,25 @@ const featureCopy = {
     wordPrompt: 'Write three English words you know.',
     grammarPrompt: 'Fix this: i like tea',
     paragraphPrompt: 'Write two simple sentences about your day.',
+    azProgress: 'A–Z progress',
+    letterName: 'Letter name',
+    pronunciationGuide: 'Pronunciation guide',
+    exampleWords: 'Example words',
+    exampleSentence: 'Example sentence',
+    markLetter: 'Mark letter complete',
+    completedLetter: 'Letter completed',
+    nextLetter: 'Next letter',
+    wordTypeMatch: 'Match words',
+    wordTypeMissing: 'Missing letters',
+    wordTypeChoose: 'Choose a word',
+    wordTypeType: 'Type the word',
+    checkAnswer: 'Check answer',
+    tryNext: 'Try next',
+    yourAnswer: 'Your answer',
+    selectOption: 'Select an answer',
+    grammarCategory: 'Grammar category',
+    paragraphTopic: 'Paragraph topic',
+    correctionDemo: 'Demo correction · no AI key needed',
   },
   si: {
     startSpeaking: 'කතා කිරීම ආරම්භ කරන්න',
@@ -144,6 +234,25 @@ const featureCopy = {
     wordPrompt: 'ඔබ දන්නා ඉංග්‍රීසි වචන තුනක් ලියන්න.',
     grammarPrompt: 'මෙය නිවැරදි කරන්න: i like tea',
     paragraphPrompt: 'ඔබේ දවස ගැන සරල වාක්‍ය දෙකක් ලියන්න.',
+    azProgress: 'A–Z ප්‍රගතිය',
+    letterName: 'අකුරේ නම',
+    pronunciationGuide: 'උච්චාරණ මාර්ගෝපදේශය',
+    exampleWords: 'උදාහරණ වචන',
+    exampleSentence: 'උදාහරණ වාක්‍යය',
+    markLetter: 'අකුර සම්පූර්ණ ලෙස සලකුණු කරන්න',
+    completedLetter: 'අකුර සම්පූර්ණයි',
+    nextLetter: 'ඊළඟ අකුර',
+    wordTypeMatch: 'වචන ගළපන්න',
+    wordTypeMissing: 'අහිමි අකුරු',
+    wordTypeChoose: 'වචනය තෝරන්න',
+    wordTypeType: 'වචනය ටයිප් කරන්න',
+    checkAnswer: 'පිළිතුර පරීක්ෂා කරන්න',
+    tryNext: 'ඊළඟට උත්සාහ කරන්න',
+    yourAnswer: 'ඔබේ පිළිතුර',
+    selectOption: 'පිළිතුරක් තෝරන්න',
+    grammarCategory: 'ව්‍යාකරණ කාණ්ඩය',
+    paragraphTopic: 'ඡේද මාතෘකාව',
+    correctionDemo: 'ආදර්ශ නිවැරදි කිරීම · AI යතුරක් අවශ්‍ය නැත',
   },
   ta: {
     startSpeaking: 'பேசத் தொடங்குங்கள்',
@@ -180,6 +289,25 @@ const featureCopy = {
     wordPrompt: 'உங்களுக்குத் தெரிந்த மூன்று ஆங்கிலச் சொற்களை எழுதுங்கள்.',
     grammarPrompt: 'இதைச் சரிசெய்யவும்: i like tea',
     paragraphPrompt: 'உங்கள் நாளைப் பற்றி இரண்டு எளிய வாக்கியங்களை எழுதுங்கள்.',
+    azProgress: 'A–Z முன்னேற்றம்',
+    letterName: 'எழுத்தின் பெயர்',
+    pronunciationGuide: 'உச்சரிப்பு வழிகாட்டி',
+    exampleWords: 'எடுத்துக்காட்டு சொற்கள்',
+    exampleSentence: 'எடுத்துக்காட்டு வாக்கியம்',
+    markLetter: 'எழுத்தை முடிந்ததாகக் குறிக்கவும்',
+    completedLetter: 'எழுத்து முடிந்தது',
+    nextLetter: 'அடுத்த எழுத்து',
+    wordTypeMatch: 'சொற்களைப் பொருத்தவும்',
+    wordTypeMissing: 'விடுபட்ட எழுத்துகள்',
+    wordTypeChoose: 'ஒரு சொல்லைத் தேர்ந்தெடுக்கவும்',
+    wordTypeType: 'சொல்லைத் தட்டச்சு செய்யவும்',
+    checkAnswer: 'பதிலைச் சரிபார்க்கவும்',
+    tryNext: 'அடுத்து முயற்சி',
+    yourAnswer: 'உங்கள் பதில்',
+    selectOption: 'ஒரு பதிலைத் தேர்ந்தெடுக்கவும்',
+    grammarCategory: 'இலக்கண வகை',
+    paragraphTopic: 'பத்தி தலைப்பு',
+    correctionDemo: 'மாதிரி திருத்தம் · AI விசை தேவையில்லை',
   },
 };
 const iconForView: Record<ViewName, keyof typeof Ionicons.glyphMap> = { home: 'home-outline', lessons: 'book-outline', practice: 'pencil-outline', progress: 'stats-chart-outline', downloads: 'download-outline', speaking: 'chatbubbles-outline', writing: 'create-outline', lesson: 'book-outline', test: 'checkmark-circle-outline' };
@@ -260,6 +388,106 @@ async function requestTeacherReply(transcript: string, language: Language, level
     }
   }
   return mockTeacherReply(transcript, topic);
+}
+
+type WritingResult = { correct: string; mistakes: string; explanation: string; better: string };
+
+function localizedWritingExplanation(language: Language, kind: 'past' | 'capital' | 'period' | 'general') {
+  const explanations: Record<'past' | 'capital' | 'period' | 'general', Record<Language, string>> = {
+    past: {
+      en: 'This sentence talks about the past, so use “went”. Remove “am” before the past verb.',
+      si: 'මෙම වාක්‍යය අතීතය ගැනයි. ඒ නිසා “went” භාවිතා කරන්න. අතීත ක්‍රියා පදයට පෙර “am” ඉවත් කරන්න.',
+      ta: 'இந்த வாக்கியம் கடந்த காலத்தைப் பற்றி பேசுகிறது. எனவே “went” பயன்படுத்துங்கள். கடந்தகால வினைச்சொல்லுக்கு முன் “am” வேண்டாம்.',
+    },
+    capital: {
+      en: 'Start an English sentence with a capital letter.',
+      si: 'ඉංග්‍රීසි වාක්‍යයක් විශාල අකුරකින් ආරම්භ කරන්න.',
+      ta: 'ஆங்கில வாக்கியத்தை பெரிய எழுத்தில் தொடங்குங்கள்.',
+    },
+    period: {
+      en: 'Put a full stop at the end of a complete sentence.',
+      si: 'සම්පූර්ණ වාක්‍යයක අවසානයේ තිතක් දමන්න.',
+      ta: 'முழுமையான வாக்கியத்தின் முடிவில் ஒரு புள்ளி இடுங்கள்.',
+    },
+    general: {
+      en: 'Use short sentences. Check the subject, verb, and time word.',
+      si: 'කෙටි වාක්‍ය භාවිතා කරන්න. කර්තෘ, ක්‍රියා පදය සහ කාල වචනය පරීක්ෂා කරන්න.',
+      ta: 'சிறிய வாக்கியங்களைப் பயன்படுத்துங்கள். எழுவாய், வினைச்சொல், காலச் சொல்லைச் சரிபார்க்கவும்.',
+    },
+  };
+  return explanations[kind][language];
+}
+
+function demoWritingCorrection(text: string, language: Language, mode: PracticeMode, paragraphTopicId?: string): WritingResult {
+  const trimmed = text.trim();
+  const lower = trimmed.toLowerCase().replace(/[.!?]+$/, '');
+  const paragraph = paragraphTopics.find((item) => item.id === paragraphTopicId) ?? paragraphTopics[0];
+
+  if (lower === 'i am go school yesterday' || lower.includes('i am go school yesterday')) {
+    return {
+      correct: 'I went to school yesterday.',
+      mistakes: '• “go” should be “went”\n• Remove “am”\n• Add “to” before “school”',
+      explanation: localizedWritingExplanation(language, 'past'),
+      better: 'I went to school yesterday. I learned English with my friends.',
+    };
+  }
+  if (lower === 'my name kamal') {
+    return {
+      correct: 'My name is Kamal.',
+      mistakes: '• Add “is” after “name”\n• Start with a capital letter\n• Add a full stop',
+      explanation: language === 'si' ? 'නම පැවසීමට “My name is …” යන රටාව භාවිතා කරන්න.' : language === 'ta' ? 'பெயரைச் சொல்ல “My name is …” என்ற வடிவத்தைப் பயன்படுத்துங்கள்.' : 'Use the pattern “My name is …” to say your name.',
+      better: 'My name is Kamal. I am learning English.',
+    };
+  }
+  if (lower === 'i go school') {
+    return {
+      correct: 'I go to school.',
+      mistakes: '• Add “to” before “school”\n• Add a full stop',
+      explanation: language === 'si' ? 'ස්ථානයකට යන විට “go to” භාවිතා කරන්න.' : language === 'ta' ? 'ஒரு இடத்திற்குச் செல்லும்போது “go to” பயன்படுத்துங்கள்.' : 'Use “go to” when you travel to a place.',
+      better: 'I go to school every day.',
+    };
+  }
+
+  let corrected = trimmed;
+  const issues: string[] = [];
+  if (mode !== 'words' && /^[a-z]/.test(corrected)) {
+    corrected = corrected.charAt(0).toUpperCase() + corrected.slice(1);
+    issues.push('• Start with a capital letter');
+  }
+  if (mode !== 'words' && corrected && !/[.?!]$/.test(corrected)) {
+    corrected = `${corrected}.`;
+    issues.push('• Add a full stop');
+  }
+  const looksGood = mode === 'words'
+    ? trimmed.split(/\s|,/).filter(Boolean).length >= 3
+    : issues.length === 0;
+  return {
+    correct: looksGood ? trimmed : corrected,
+    mistakes: looksGood ? 'No mistakes found.' : issues.join('\n'),
+    explanation: looksGood ? 'Good work. Your sentence is clear.' : issues.some((item) => item.includes('capital')) ? localizedWritingExplanation(language, 'capital') : localizedWritingExplanation(language, 'period'),
+    better: mode === 'paragraph' ? paragraph.better : mode === 'words' ? 'I read a book every day.' : 'I am learning English every day.',
+  };
+}
+
+async function requestWritingCorrection(text: string, language: Language, mode: PracticeMode, paragraphTopicId?: string): Promise<WritingResult> {
+  if (AI_API_URL) {
+    try {
+      const response = await fetch(AI_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(AI_API_KEY ? { Authorization: `Bearer ${AI_API_KEY}` } : {}) },
+        body: JSON.stringify({ mode: 'writing-correction', practiceMode: mode, paragraphTopic: paragraphTopicId, text, explanationLanguage: language }),
+      });
+      if (response.ok) {
+        const data = await response.json() as Partial<WritingResult>;
+        if (data.correct && data.mistakes && data.explanation && data.better) {
+          return { correct: data.correct, mistakes: data.mistakes, explanation: data.explanation, better: data.better };
+        }
+      }
+    } catch {
+      // Keep the offline demo correction available when the optional service is unavailable.
+    }
+  }
+  return demoWritingCorrection(text, language, mode, paragraphTopicId);
 }
 
 async function saveAndShareAsset(moduleId: number, filename: string, mimeType: string, title: string, language: Language) {
@@ -412,7 +640,7 @@ function TestView({ testId, go, language, onLanguage }: { testId: number; go: (v
 function PracticeView({ go, language, onLanguage }: { go: (view: ViewName, data?: number) => void; language: Language; onLanguage: (language: Language) => void }) {
   const colors = useColors();
   const t = getText(language);
-  return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title={t.practice} language={language} onLanguage={onLanguage} /><ScrollView contentContainerStyle={styles.scrollContent}><View style={[styles.practiceHero, { backgroundColor: colors.navy }]}><Ionicons name="sparkles" size={25} color={colors.gold} /><Text style={styles.practiceHeroTitle}>{t.quickPractice}</Text><Text style={styles.practiceHeroHint}>Choose a skill and build confidence.</Text></View><Pressable onPress={() => go('writing')} style={[styles.practiceLink, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.practiceLinkIcon, { backgroundColor: colors.accent }]}><Ionicons name="create-outline" size={22} color={colors.accentForeground} /></View><View style={styles.flex}><Text style={[styles.practiceLinkTitle, { color: colors.foreground }]}>{t.writing}</Text><Text style={[styles.practiceLinkHint, { color: colors.mutedForeground }]}>{t.writingHint}</Text></View><Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} /></Pressable><Pressable onPress={() => go('speaking')} style={[styles.practiceLink, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.practiceLinkIcon, { backgroundColor: colors.mint }]}><Ionicons name="mic-outline" size={22} color={colors.success} /></View><View style={styles.flex}><Text style={[styles.practiceLinkTitle, { color: colors.foreground }]}>{t.speaking}</Text><Text style={[styles.practiceLinkHint, { color: colors.mutedForeground }]}>{t.speakingHint}</Text></View><Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} /></Pressable><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t.learnAZ}</Text><View style={[styles.alphabetPreview, { backgroundColor: colors.card, borderColor: colors.border }]}>{alphabet.slice(0, 12).map(([upper, lower]) => <View key={upper} style={[styles.letterBox, { backgroundColor: colors.secondary }]}><Text style={[styles.letterUpper, { color: colors.foreground }]}>{upper}</Text><Text style={[styles.letterLower, { color: colors.primary }]}>{lower}</Text></View>)}<Pressable onPress={() => go('writing')} style={[styles.azButton, { backgroundColor: colors.primary }]}><Text style={styles.azButtonText}>{t.start}</Text><Ionicons name="arrow-forward" size={16} color="#FFFFFF" /></Pressable></View></ScrollView><BottomNav active="practice" go={go} language={language} /></View>;
+  return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title={t.practice} language={language} onLanguage={onLanguage} /><ScrollView contentContainerStyle={styles.scrollContent}><View style={[styles.practiceHero, { backgroundColor: colors.navy }]}><Ionicons name="sparkles" size={25} color={colors.gold} /><Text style={styles.practiceHeroTitle}>{t.quickPractice}</Text><Text style={styles.practiceHeroHint}>Choose a skill and build confidence.</Text></View><Pressable onPress={() => go('writing')} style={[styles.practiceLink, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.practiceLinkIcon, { backgroundColor: colors.accent }]}><Ionicons name="create-outline" size={22} color={colors.accentForeground} /></View><View style={styles.flex}><Text style={[styles.practiceLinkTitle, { color: colors.foreground }]}>{t.writing}</Text><Text style={[styles.practiceLinkHint, { color: colors.mutedForeground }]}>{t.writingHint}</Text></View><Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} /></Pressable><Pressable onPress={() => go('speaking')} style={[styles.practiceLink, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.practiceLinkIcon, { backgroundColor: colors.mint }]}><Ionicons name="mic-outline" size={22} color={colors.success} /></View><View style={styles.flex}><Text style={[styles.practiceLinkTitle, { color: colors.foreground }]}>{t.speaking}</Text><Text style={[styles.practiceLinkHint, { color: colors.mutedForeground }]}>{t.speakingHint}</Text></View><Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} /></Pressable><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t.learnAZ}</Text><View style={[styles.alphabetPreview, { backgroundColor: colors.card, borderColor: colors.border }]}>{alphabet.slice(0, 12).map((item) => <View key={item.upper} style={[styles.letterBox, { backgroundColor: colors.secondary }]}><Text style={[styles.letterUpper, { color: colors.foreground }]}>{item.upper}</Text><Text style={[styles.letterLower, { color: colors.primary }]}>{item.lower}</Text></View>)}<Pressable onPress={() => go('writing')} style={[styles.azButton, { backgroundColor: colors.primary }]}><Text style={styles.azButtonText}>{t.start}</Text><Ionicons name="arrow-forward" size={16} color="#FFFFFF" /></Pressable></View></ScrollView><BottomNav active="practice" go={go} language={language} /></View>;
 }
 
 function WritingView({ go, language, onLanguage }: { go: (view: ViewName, data?: number) => void; language: Language; onLanguage: (language: Language) => void }) {
