@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "UOaP2upi1hL1KR-Ojjh4t"
+uri = "file://artifacts/englishmate-ai/assets/downloads/spoken-english-lesson.mp3"
+type = "audio"
+title = "spoken English lesson"
+description = "Text-to-speech audio: Hello! What is your name? Nice to meet you. Where do you live?"

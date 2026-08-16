@@ -1,7 +1,10 @@
 import * as Haptics from 'expo-haptics';
+import * as Speech from 'expo-speech';
+import { Asset } from 'expo-asset';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
   Image,
@@ -17,9 +20,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { Language, useApp } from '@/context/app-context';
+import { AI_API_KEY, AI_API_URL, AI_DEMO_MODE } from '@/constants/config';
 
 type ViewName = 'home' | 'lessons' | 'practice' | 'progress' | 'downloads' | 'speaking' | 'writing' | 'lesson' | 'test';
 type PracticeMode = 'letters' | 'words' | 'sentences' | 'grammar' | 'paragraph';
+type SpeakingLevel = 'beginner' | 'elementary' | 'intermediate';
+type SpeakingTopic = 'introductions' | 'family' | 'school' | 'work' | 'shopping' | 'food' | 'travel' | 'routine';
 
 type Lesson = {
   id: number;
@@ -66,10 +72,214 @@ const copy = {
 };
 
 const getText = (language: Language) => copy[language];
+const featureCopy = {
+  en: {
+    startSpeaking: 'Start speaking',
+    stopSpeaking: 'Stop speaking',
+    microphone: 'Microphone',
+    listening: 'Listening for your answer…',
+    readyToListen: 'Ready for your voice',
+    demoMode: 'Demo mode · no AI key needed',
+    liveMode: 'Connected to your AI service',
+    transcript: 'Your transcript',
+    feedback: 'Speaking feedback',
+    grammarCorrection: 'Grammar correction',
+    explanation: 'Simple explanation',
+    speakingLevel: 'Speaking level',
+    topic: 'Conversation topic',
+    startPractice: 'Start practice',
+    clearConversation: 'Clear conversation',
+    repeatAI: 'Repeat AI voice',
+    correctMyEnglish: 'Correct my English',
+    tryDemo: 'Try demo phrase',
+    demoPhrase: 'My name Kamal.',
+    corrected: 'My name is Kamal.',
+    speakAgain: 'Tap the microphone, then stop when you finish.',
+    locked: 'Complete the required lessons first',
+    requiredLessons: 'Finish all five lessons to unlock this test.',
+    downloadReady: 'Saved to the app folder. Choose an app to open or share it.',
+    downloadError: 'The file could not be saved. Please try again.',
+    downloaded: 'File ready',
+    exercise: 'Beginner exercise',
+    betterExample: 'Better example',
+    mistakesFound: 'Mistakes found',
+    noMistakes: 'No mistakes found',
+    sentencePrompt: 'Write one English sentence about yourself.',
+    wordPrompt: 'Write three English words you know.',
+    grammarPrompt: 'Fix this: i like tea',
+    paragraphPrompt: 'Write two simple sentences about your day.',
+  },
+  si: {
+    startSpeaking: 'කතා කිරීම ආරම්භ කරන්න',
+    stopSpeaking: 'කතා කිරීම නවත්වන්න',
+    microphone: 'මයික්‍රොෆෝනය',
+    listening: 'ඔබේ පිළිතුර අසමින්…',
+    readyToListen: 'ඔබේ හඬට සූදානම්',
+    demoMode: 'ආදර්ශ මාදිලිය · AI යතුරක් අවශ්‍ය නැත',
+    liveMode: 'ඔබේ AI සේවයට සම්බන්ධයි',
+    transcript: 'ඔබේ පෙළ',
+    feedback: 'කතා ප්‍රතිචාරය',
+    grammarCorrection: 'ව්‍යාකරණ නිවැරදි කිරීම',
+    explanation: 'සරල පැහැදිලි කිරීම',
+    speakingLevel: 'කතා මට්ටම',
+    topic: 'සංවාද මාතෘකාව',
+    startPractice: 'පුහුණුව ආරම්භ කරන්න',
+    clearConversation: 'සංවාදය මකන්න',
+    repeatAI: 'AI හඬ නැවත අසන්න',
+    correctMyEnglish: 'මගේ ඉංග්‍රීසි නිවැරදි කරන්න',
+    tryDemo: 'ආදර්ශ වාක්‍යය උත්සාහ කරන්න',
+    demoPhrase: 'My name Kamal.',
+    corrected: 'My name is Kamal.',
+    speakAgain: 'මයික්‍රොෆෝනය තට්ටු කර අවසන් වූ විට නවත්වන්න.',
+    locked: 'අවශ්‍ය පාඩම් පළමුව සම්පූර්ණ කරන්න',
+    requiredLessons: 'මෙම පරීක්ෂණය විවෘත කිරීමට පාඩම් පහම අවසන් කරන්න.',
+    downloadReady: 'යෙදුම් ෆෝල්ඩරයේ සුරකින ලදී. විවෘත කිරීමට හෝ බෙදා ගැනීමට යෙදුමක් තෝරන්න.',
+    downloadError: 'ගොනුව සුරැකිය නොහැක. නැවත උත්සාහ කරන්න.',
+    downloaded: 'ගොනුව සූදානම්',
+    exercise: 'ආරම්භක අභ්‍යාසය',
+    betterExample: 'වඩා හොඳ උදාහරණය',
+    mistakesFound: 'හමු වූ වැරදි',
+    noMistakes: 'වැරදි හමු නොවීය',
+    sentencePrompt: 'ඔබ ගැන ඉංග්‍රීසි වාක්‍යයක් ලියන්න.',
+    wordPrompt: 'ඔබ දන්නා ඉංග්‍රීසි වචන තුනක් ලියන්න.',
+    grammarPrompt: 'මෙය නිවැරදි කරන්න: i like tea',
+    paragraphPrompt: 'ඔබේ දවස ගැන සරල වාක්‍ය දෙකක් ලියන්න.',
+  },
+  ta: {
+    startSpeaking: 'பேசத் தொடங்குங்கள்',
+    stopSpeaking: 'பேசுவதை நிறுத்துங்கள்',
+    microphone: 'ஒலிவாங்கி',
+    listening: 'உங்கள் பதிலைக் கேட்கிறது…',
+    readyToListen: 'உங்கள் குரலுக்குத் தயார்',
+    demoMode: 'மாதிரி நிலை · AI விசை தேவையில்லை',
+    liveMode: 'உங்கள் AI சேவையுடன் இணைக்கப்பட்டது',
+    transcript: 'உங்கள் உரை',
+    feedback: 'பேச்சு கருத்து',
+    grammarCorrection: 'இலக்கண திருத்தம்',
+    explanation: 'எளிய விளக்கம்',
+    speakingLevel: 'பேச்சு நிலை',
+    topic: 'உரையாடல் தலைப்பு',
+    startPractice: 'பயிற்சியைத் தொடங்குங்கள்',
+    clearConversation: 'உரையாடலை அழிக்கவும்',
+    repeatAI: 'AI குரலை மீண்டும் கேளுங்கள்',
+    correctMyEnglish: 'என் ஆங்கிலத்தைச் சரிசெய்யவும்',
+    tryDemo: 'மாதிரி வாக்கியத்தை முயற்சிக்கவும்',
+    demoPhrase: 'My name Kamal.',
+    corrected: 'My name is Kamal.',
+    speakAgain: 'ஒலிவாங்கியைத் தட்டி முடித்ததும் நிறுத்துங்கள்.',
+    locked: 'தேவையான பாடங்களை முதலில் முடிக்கவும்',
+    requiredLessons: 'இந்த சோதனையைத் திறக்க ஐந்து பாடங்களையும் முடிக்கவும்.',
+    downloadReady: 'ஆப் கோப்புறையில் சேமிக்கப்பட்டது. திறக்க அல்லது பகிர ஒரு ஆப்பைத் தேர்ந்தெடுக்கவும்.',
+    downloadError: 'கோப்பைச் சேமிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    downloaded: 'கோப்பு தயார்',
+    exercise: 'தொடக்கநிலை பயிற்சி',
+    betterExample: 'சிறந்த எடுத்துக்காட்டு',
+    mistakesFound: 'கண்டறியப்பட்ட தவறுகள்',
+    noMistakes: 'தவறுகள் இல்லை',
+    sentencePrompt: 'உங்களைப் பற்றி ஒரு ஆங்கில வாக்கியம் எழுதுங்கள்.',
+    wordPrompt: 'உங்களுக்குத் தெரிந்த மூன்று ஆங்கிலச் சொற்களை எழுதுங்கள்.',
+    grammarPrompt: 'இதைச் சரிசெய்யவும்: i like tea',
+    paragraphPrompt: 'உங்கள் நாளைப் பற்றி இரண்டு எளிய வாக்கியங்களை எழுதுங்கள்.',
+  },
+};
 const iconForView: Record<ViewName, keyof typeof Ionicons.glyphMap> = { home: 'home-outline', lessons: 'book-outline', practice: 'pencil-outline', progress: 'stats-chart-outline', downloads: 'download-outline', speaking: 'chatbubbles-outline', writing: 'create-outline', lesson: 'book-outline', test: 'checkmark-circle-outline' };
+
+const speakingLevels: { id: SpeakingLevel; labels: Record<Language, string> }[] = [
+  { id: 'beginner', labels: { en: 'Beginner', si: 'ආරම්භක', ta: 'தொடக்கநிலை' } },
+  { id: 'elementary', labels: { en: 'Elementary', si: 'මූලික', ta: 'அடிப்படை' } },
+  { id: 'intermediate', labels: { en: 'Intermediate', si: 'මධ්‍යම', ta: 'இடைநிலை' } },
+];
+
+const speakingTopics: { id: SpeakingTopic; labels: Record<Language, string> }[] = [
+  { id: 'introductions', labels: { en: 'Introducing yourself', si: 'ඔබව හඳුන්වා දීම', ta: 'உங்களை அறிமுகப்படுத்துதல்' } },
+  { id: 'family', labels: { en: 'Family', si: 'පවුල', ta: 'குடும்பம்' } },
+  { id: 'school', labels: { en: 'School', si: 'පාසල', ta: 'பள்ளி' } },
+  { id: 'work', labels: { en: 'Work', si: 'රැකියාව', ta: 'வேலை' } },
+  { id: 'shopping', labels: { en: 'Shopping', si: 'සාප්පු සවාරි', ta: 'ஷாப்பிங்' } },
+  { id: 'food', labels: { en: 'Food', si: 'ආහාර', ta: 'உணவு' } },
+  { id: 'travel', labels: { en: 'Travel', si: 'ගමන්', ta: 'பயணம்' } },
+  { id: 'routine', labels: { en: 'Daily routine', si: 'දෛනික චර්යාව', ta: 'தினசரி வழக்கம்' } },
+];
 
 function actionHaptic() {
   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+}
+
+function openingTeacherMessage(topic: SpeakingTopic) {
+  const openings: Record<SpeakingTopic, string> = {
+    introductions: 'Hello! What is your name?',
+    family: 'Hello! How many people are in your family?',
+    school: 'Hello! What do you study at school?',
+    work: 'Hello! What do you do for work?',
+    shopping: 'Hello! What would you like to buy?',
+    food: 'Hello! What food do you like?',
+    travel: 'Hello! Where would you like to travel?',
+    routine: 'Hello! What do you do in the morning?',
+  };
+  return openings[topic];
+}
+
+function mockTeacherReply(transcript: string, topic: SpeakingTopic) {
+  const lower = transcript.toLowerCase();
+  if (topic === 'family' || lower.includes('family') || lower.includes('brother') || lower.includes('sister')) return 'That is nice. Do you live with your family?';
+  if (topic === 'school' || lower.includes('school') || lower.includes('study')) return 'Good! What is your favourite subject?';
+  if (topic === 'work' || lower.includes('work') || lower.includes('job')) return 'I see. What do you do at work?';
+  if (topic === 'shopping' || lower.includes('buy') || lower.includes('price')) return 'Good question. What colour would you like?';
+  if (topic === 'food' || lower.includes('eat') || lower.includes('food')) return 'Yummy! Do you like rice or noodles?';
+  if (topic === 'travel' || lower.includes('travel') || lower.includes('visit')) return 'That sounds exciting. Who will travel with you?';
+  if (topic === 'routine' || lower.includes('morning') || lower.includes('every day')) return 'Great! What do you do in the evening?';
+  if (lower.includes('my name')) return 'Nice to meet you! Where do you live?';
+  if (lower.includes('live')) return 'That sounds nice. What do you like to eat?';
+  if (lower.includes('like')) return 'Good sentence! What do you do every morning?';
+  return 'Good try! Please say one more simple sentence.';
+}
+
+function getSpeakingFeedback(transcript: string, language: Language) {
+  const lower = transcript.trim().toLowerCase();
+  const feature = featureCopy[language];
+  if (lower.includes('my name') && !lower.includes(' is ')) {
+    return { correction: feature.corrected, explanation: language === 'si' ? 'නමෙන් පසු is යෙදීමෙන් සම්පූර්ණ වාක්‍යයක් සෑදේ.' : language === 'ta' ? 'பெயருக்குப் பிறகு is சேர்த்தால் முழுமையான வாக்கியம் கிடைக்கும்.' : 'Use is after the name to make a complete sentence.' };
+  }
+  return { correction: transcript.trim(), explanation: language === 'si' ? 'ඔබ හොඳින් උත්සාහ කළා. සරල වාක්‍ය දිගටම කතා කරන්න.' : language === 'ta' ? 'நல்ல முயற்சி. எளிய வாக்கியங்களைத் தொடர்ந்து பேசுங்கள்.' : 'Nice effort. Keep speaking in short, clear sentences.' };
+}
+
+async function requestTeacherReply(transcript: string, language: Language, level: SpeakingLevel, topic: SpeakingTopic) {
+  if (AI_API_URL) {
+    try {
+      const response = await fetch(AI_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(AI_API_KEY ? { Authorization: `Bearer ${AI_API_KEY}` } : {}) },
+        body: JSON.stringify({ mode: 'english-conversation', level, topic, message: transcript, explanationLanguage: language }),
+      });
+      if (response.ok) {
+        const data = await response.json() as { reply?: string };
+        if (data.reply) return data.reply;
+      }
+    } catch {
+      // Fall back to the offline teacher so the speaking flow always works.
+    }
+  }
+  return mockTeacherReply(transcript, topic);
+}
+
+async function saveAndShareAsset(moduleId: number, filename: string, mimeType: string, title: string, language: Language) {
+  try {
+    const asset = Asset.fromModule(moduleId);
+    await asset.downloadAsync();
+    const sourceUri = asset.localUri ?? asset.uri;
+    const targetUri = `${FileSystem.documentDirectory}${filename}`;
+    if (sourceUri !== targetUri) {
+      const existing = await FileSystem.getInfoAsync(targetUri);
+      if (!existing.exists) await FileSystem.copyAsync({ from: sourceUri, to: targetUri });
+    }
+    if (Platform.OS !== 'web' && await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(targetUri, { mimeType, dialogTitle: title, UTI: mimeType === 'application/pdf' ? 'com.adobe.pdf' : 'public.audio' });
+    } else {
+      Alert.alert(featureCopy[language].downloaded, featureCopy[language].downloadReady);
+    }
+  } catch {
+    Alert.alert(featureCopy[language].downloaded, featureCopy[language].downloadError);
+  }
 }
 
 function Header({ title, onBack, language, onLanguage }: { title: string; onBack?: () => void; language: Language; onLanguage: (language: Language) => void }) {
@@ -159,7 +369,10 @@ function TestRow({ testId, go, language }: { testId: number; go: (view: ViewName
   const t = getText(language);
   const app = useApp();
   const score = app.testScores[String(testId)];
-  return <Pressable testID={`test-${testId}`} onPress={() => go('test', testId)} style={({ pressed }) => [styles.testRow, { backgroundColor: colors.accent, borderColor: colors.gold }, pressed && styles.pressed]}><View style={[styles.testIcon, { backgroundColor: colors.gold }]}><Ionicons name="trophy-outline" size={20} color={colors.navy} /></View><View style={styles.flex}><Text style={[styles.testTitle, { color: colors.foreground }]}>{testId === 1 ? t.testOne : t.testTwo}</Text><Text style={[styles.testHint, { color: colors.mutedForeground }]}>{score === undefined ? t.startTest : `${t.score}: ${score}%`}</Text></View><Ionicons name="arrow-forward-circle" size={23} color={colors.accentForeground} /></Pressable>;
+  const requiredIds = testId === 1 ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10];
+  const unlocked = requiredIds.every((id) => app.completedLessons.includes(id));
+  const feature = featureCopy[language];
+  return <Pressable testID={`test-${testId}`} disabled={!unlocked} onPress={() => go('test', testId)} style={({ pressed }) => [styles.testRow, { backgroundColor: unlocked ? colors.accent : colors.muted, borderColor: unlocked ? colors.gold : colors.border }, !unlocked && styles.lockedRow, pressed && styles.pressed]}><View style={[styles.testIcon, { backgroundColor: unlocked ? colors.gold : colors.secondary }]}><Ionicons name={unlocked ? 'trophy-outline' : 'lock-closed-outline'} size={20} color={unlocked ? colors.navy : colors.mutedForeground} /></View><View style={styles.flex}><Text style={[styles.testTitle, { color: colors.foreground }]}>{testId === 1 ? t.testOne : t.testTwo}</Text><Text style={[styles.testHint, { color: colors.mutedForeground }]}>{unlocked ? (score === undefined ? t.startTest : `${t.score}: ${score}%`) : feature.requiredLessons}</Text></View><Ionicons name={unlocked ? 'arrow-forward-circle' : 'lock-closed-outline'} size={22} color={unlocked ? colors.accentForeground : colors.mutedForeground} /></Pressable>;
 }
 
 function LessonView({ lessonId, go, language, onLanguage }: { lessonId: number; go: (view: ViewName, data?: number) => void; language: Language; onLanguage: (language: Language) => void }) {
@@ -181,13 +394,17 @@ function TestView({ testId, go, language, onLanguage }: { testId: number; go: (v
   const colors = useColors();
   const t = getText(language);
   const app = useApp();
+  const feature = featureCopy[language];
   const testLessons = testId === 1 ? lessons.slice(0, 5) : lessons.slice(5, 10);
   const questions = testLessons.map((lesson) => ({ question: lesson.question, answer: lesson.answer, options: [lesson.answer, 'blue', 'please'] }));
+  const requiredIds = testId === 1 ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10];
+  const unlocked = requiredIds.every((id) => app.completedLessons.includes(id));
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<string[]>([]);
   const [finished, setFinished] = useState(false);
   const question = questions[current];
   const score = answers.filter((answer, index) => answer?.toLowerCase() === questions[index]?.answer.toLowerCase()).length * 20;
+  if (!unlocked) return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title={testId === 1 ? t.testOne : t.testTwo} onBack={() => go('lessons')} language={language} onLanguage={onLanguage} /><View style={styles.resultWrap}><View style={[styles.resultIcon, { backgroundColor: colors.muted }]}><Ionicons name="lock-closed-outline" size={34} color={colors.mutedForeground} /></View><Text style={[styles.resultTitle, { color: colors.foreground }]}>{feature.locked}</Text><Text style={[styles.resultHint, { color: colors.mutedForeground }]}>{feature.requiredLessons}</Text><PrimaryButton label={t.back} icon="arrow-back" colors={colors} onPress={() => go('lessons')} /></View></View>;
   if (finished) return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title={testId === 1 ? t.testOne : t.testTwo} onBack={() => go('lessons')} language={language} onLanguage={onLanguage} /><View style={styles.resultWrap}><View style={[styles.resultIcon, { backgroundColor: colors.gold }]}><Ionicons name="trophy" size={34} color={colors.navy} /></View><Text style={[styles.resultTitle, { color: colors.foreground }]}>{t.score}</Text><Text style={[styles.resultScore, { color: colors.primary }]}>{score}%</Text><Text style={[styles.resultHint, { color: colors.mutedForeground }]}>{score >= 60 ? t.encouragement : t.tryAgain}</Text><PrimaryButton label={t.done} icon="arrow-back" colors={colors} onPress={() => go('lessons')} /></View></View>;
   return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title={testId === 1 ? t.testOne : t.testTwo} onBack={() => go('lessons')} language={language} onLanguage={onLanguage} /><ScrollView contentContainerStyle={styles.scrollContent}><View style={[styles.testIntro, { backgroundColor: colors.accent }]}><Text style={[styles.testCounter, { color: colors.accentForeground }]}>{current + 1} / {questions.length}</Text><Text style={[styles.testIntroText, { color: colors.foreground }]}>{t.testIntro}</Text></View><InfoSection title={t.practiceQuestions} colors={colors}><Text style={[styles.questionText, { color: colors.foreground }]}>{question.question}</Text>{question.options.map((option) => <Pressable key={option} testID={`test-option-${option}`} onPress={() => setAnswers([...answers.slice(0, current), option])} style={[styles.optionRow, { borderColor: answers[current] === option ? colors.primary : colors.border, backgroundColor: answers[current] === option ? colors.secondary : colors.background }]}><Text style={[styles.optionText, { color: colors.foreground }]}>{option}</Text>{answers[current] === option && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}</Pressable>)}</InfoSection><PrimaryButton label={current === questions.length - 1 ? t.done : t.next} icon={current === questions.length - 1 ? 'checkmark' : 'arrow-forward'} colors={colors} onPress={() => { if (!answers[current]) return; if (current === questions.length - 1) { app.saveTestScore(testId, score); setFinished(true); } else setCurrent(current + 1); }} /></ScrollView></View>;
 }
@@ -204,20 +421,43 @@ function WritingView({ go, language, onLanguage }: { go: (view: ViewName, data?:
   const app = useApp();
   const [mode, setMode] = useState<PracticeMode>('letters');
   const [value, setValue] = useState('');
-  const [result, setResult] = useState<{ correct: string; mistake: string; suggestion: string } | null>(null);
+  const [result, setResult] = useState<{ correct: string; mistakes: string; explanation: string; better: string } | null>(null);
+  const feature = featureCopy[language];
   const modes: { id: PracticeMode; label: string }[] = [{ id: 'letters', label: t.letters }, { id: 'words', label: t.words }, { id: 'sentences', label: t.sentences }, { id: 'grammar', label: t.grammar }, { id: 'paragraph', label: t.paragraph }];
   const placeholder = mode === 'letters' ? 'A B C...' : mode === 'words' ? 'apple, book...' : mode === 'paragraph' ? 'I am learning English...' : 'I like English.';
+  const exercise = mode === 'words' ? feature.wordPrompt : mode === 'grammar' ? feature.grammarPrompt : mode === 'paragraph' ? feature.paragraphPrompt : feature.sentencePrompt;
   const checkWriting = () => {
     const trimmed = value.trim();
     if (!trimmed) return;
     const lower = trimmed.toLowerCase();
-    const correct = mode === 'letters' ? 'A B C D E' : mode === 'words' ? 'apple, book, cat' : mode === 'paragraph' ? 'I am learning English every day.' : 'I like English.';
-    const looksGood = mode === 'letters' ? /a/i.test(trimmed) : mode === 'words' ? trimmed.split(/\s|,/).filter(Boolean).length >= 2 : /[.?!]$/.test(trimmed) && /^[A-Z]/.test(trimmed);
-    setResult({ correct: looksGood ? trimmed : correct, mistake: looksGood ? 'Your sentence looks good.' : language === 'si' ? 'වාක්‍යය විශාල අකුරකින් ආරම්භ කර අවසානයේ තිතක් දමන්න.' : language === 'ta' ? 'வாக்கியத்தை பெரிய எழுத்தில் தொடங்கி இறுதியில் புள்ளி இடுங்கள்.' : 'Start with a capital letter and add a full stop.', suggestion: looksGood ? t.encouragement : `${t.suggestion}: ${correct}` });
+    const correct = mode === 'words' ? 'apple, book, cat' : mode === 'paragraph' ? 'I am learning English every day. I read a book.' : 'I like English.';
+    let corrected = trimmed;
+    const issues: string[] = [];
+    if (mode !== 'words' && /^[a-z]/.test(corrected)) {
+      corrected = corrected.charAt(0).toUpperCase() + corrected.slice(1);
+      issues.push(language === 'si' ? 'වාක්‍යය විශාල අකුරකින් ආරම්භ කරන්න.' : language === 'ta' ? 'வாக்கியத்தை பெரிய எழுத்தில் தொடங்குங்கள்.' : 'Start with a capital letter.');
+    }
+    if (mode === 'grammar' && lower === 'i like tea') {
+      corrected = 'I like tea.';
+      issues.push(language === 'si' ? 'අවසානයේ තිතක් දමන්න.' : language === 'ta' ? 'இறுதியில் புள்ளி இடுங்கள்.' : 'Add a full stop at the end.');
+    }
+    if (mode !== 'words' && !/[.?!]$/.test(corrected)) {
+      corrected = `${corrected}.`;
+      issues.push(language === 'si' ? 'වාක්‍යය අවසානයේ තිතක් දමන්න.' : language === 'ta' ? 'வாக்கியத்தின் முடிவில் புள்ளி இடுங்கள்.' : 'Add a full stop at the end.');
+    }
+    const looksGood = mode === 'words'
+      ? trimmed.split(/\s|,/).filter(Boolean).length >= 3
+      : issues.length === 0 && /^[A-Z]/.test(trimmed) && /[.?!]$/.test(trimmed);
+    setResult({
+      correct: looksGood ? trimmed : corrected || correct,
+      mistakes: looksGood ? feature.noMistakes : issues.join(' '),
+      explanation: looksGood ? t.encouragement : language === 'si' ? 'නිවැරදි වාක්‍යයකට විශාල මුල් අකුරක් සහ අවසාන තිතක් අවශ්‍යයි.' : language === 'ta' ? 'சரியான வாக்கியத்திற்கு பெரிய தொடக்க எழுத்தும் இறுதி புள்ளியும் தேவை.' : 'A clear beginner sentence needs a capital letter and an ending full stop.',
+      better: mode === 'words' ? 'I read a book every day.' : mode === 'paragraph' ? 'I wake up in the morning. I study English.' : correct,
+    });
     app.incrementWriting();
     actionHaptic();
   };
-  return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title={t.writingTitle} onBack={() => go('practice')} language={language} onLanguage={onLanguage} /><KeyboardAvoidingView behavior="padding" style={styles.flex}><ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled"><Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{t.writingHint}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modeRow}>{modes.map((item) => <Pressable key={item.id} onPress={() => { setMode(item.id); setResult(null); }} style={[styles.modeChip, { backgroundColor: mode === item.id ? colors.navy : colors.card, borderColor: mode === item.id ? colors.navy : colors.border }]}><Text style={[styles.modeChipText, { color: mode === item.id ? '#FFFFFF' : colors.foreground }]}>{item.label}</Text></Pressable>)}</ScrollView>{mode === 'letters' ? <LetterList colors={colors} t={t} /> : <View style={[styles.writingCard, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.writingPrompt, { color: colors.foreground }]}>{mode === 'words' ? 'Write three English words.' : mode === 'paragraph' ? 'Write two simple sentences about your day.' : 'Write one simple English sentence.'}</Text><TextInput testID="writing-input" value={value} onChangeText={setValue} multiline numberOfLines={5} placeholder={placeholder} placeholderTextColor={colors.mutedForeground} style={[styles.writingInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} textAlignVertical="top" /><PrimaryButton label={t.checkWriting} icon="checkmark-circle-outline" colors={colors} onPress={checkWriting} />{result && <View style={[styles.resultBox, { backgroundColor: colors.mint }]}><ResultLine label={t.correct} value={result.correct} colors={colors} icon="checkmark-circle" /><ResultLine label={t.mistake} value={result.mistake} colors={colors} icon="information-circle" /><ResultLine label={t.suggestion} value={result.suggestion} colors={colors} icon="bulb-outline" /></View>}</View>}</ScrollView></KeyboardAvoidingView></View>;
+  return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title={t.writingTitle} onBack={() => go('practice')} language={language} onLanguage={onLanguage} /><KeyboardAvoidingView behavior="padding" style={styles.flex}><ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled"><Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{t.writingHint}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modeRow}>{modes.map((item) => <Pressable key={item.id} onPress={() => { setMode(item.id); setResult(null); }} style={[styles.modeChip, { backgroundColor: mode === item.id ? colors.navy : colors.card, borderColor: mode === item.id ? colors.navy : colors.border }]}><Text style={[styles.modeChipText, { color: mode === item.id ? '#FFFFFF' : colors.foreground }]}>{item.label}</Text></Pressable>)}</ScrollView>{mode === 'letters' ? <LetterList colors={colors} t={t} /> : <View style={[styles.writingCard, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.exerciseBox, { backgroundColor: colors.secondary }]}><Text style={[styles.exerciseLabel, { color: colors.primary }]}>{feature.exercise}</Text><Text style={[styles.exerciseText, { color: colors.foreground }]}>{exercise}</Text></View><TextInput testID="writing-input" value={value} onChangeText={setValue} multiline numberOfLines={5} placeholder={placeholder} placeholderTextColor={colors.mutedForeground} style={[styles.writingInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} textAlignVertical="top" /><PrimaryButton label={t.checkWriting} icon="checkmark-circle-outline" colors={colors} onPress={checkWriting} />{result && <View style={[styles.resultBox, { backgroundColor: colors.mint }]}><ResultLine label={t.correct} value={result.correct} colors={colors} icon="checkmark-circle" /><ResultLine label={feature.mistakesFound} value={result.mistakes} colors={colors} icon="alert-circle-outline" /><ResultLine label={feature.explanation} value={result.explanation} colors={colors} icon="information-circle" /><ResultLine label={feature.betterExample} value={result.better} colors={colors} icon="bulb-outline" /></View>}</View>}</ScrollView></KeyboardAvoidingView></View>;
 }
 
 function LetterList({ colors, t }: { colors: ReturnType<typeof useColors>; t: typeof copy.en }) {
@@ -232,18 +472,108 @@ function SpeakingView({ go, language, onLanguage }: { go: (view: ViewName, data?
   const colors = useColors();
   const t = getText(language);
   const app = useApp();
+  const feature = featureCopy[language];
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<{ speaker: 'teacher' | 'you'; text: string }[]>([{ speaker: 'teacher', text: 'Hello! What is your name?' }]);
-  const sendMessage = () => {
-    const trimmed = message.trim();
+  const [level, setLevel] = useState<SpeakingLevel>('beginner');
+  const [topic, setTopic] = useState<SpeakingTopic>('introductions');
+  const [messages, setMessages] = useState<{ speaker: 'teacher' | 'you'; text: string }[]>([{ speaker: 'teacher', text: openingTeacherMessage('introductions') }]);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState(feature.readyToListen);
+  const [lastTranscript, setLastTranscript] = useState('');
+  const [feedback, setFeedback] = useState<{ correction: string; explanation: string } | null>(null);
+  const [lastTeacherReply, setLastTeacherReply] = useState(openingTeacherMessage('introductions'));
+
+  const completeTurn = async (transcript: string) => {
+    const trimmed = transcript.trim();
     if (!trimmed) return;
-    const reply = trimmed.toLowerCase().includes('my name') ? 'Nice to meet you! Where do you live?' : trimmed.toLowerCase().includes('live') ? 'That sounds nice. What do you like to eat?' : 'Good try! Please say one more simple sentence.';
-    setMessages([...messages, { speaker: 'you', text: trimmed }, { speaker: 'teacher', text: reply }]);
+    setLastTranscript(trimmed);
+    const reply = await requestTeacherReply(trimmed, language, level, topic);
+    setMessages((current) => [...current, { speaker: 'you', text: trimmed }, { speaker: 'teacher', text: reply }]);
+    setLastTeacherReply(reply);
+    setFeedback(getSpeakingFeedback(trimmed, language));
+    Speech.speak(reply, { language: 'en-US', rate: 0.88 });
     setMessage('');
     app.incrementSpeaking();
     actionHaptic();
   };
-  return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title={t.aiSpeaking} onBack={() => go('practice')} language={language} onLanguage={onLanguage} /><KeyboardAvoidingView behavior="padding" style={styles.flex}><ScrollView contentContainerStyle={styles.chatContent} keyboardShouldPersistTaps="handled"><View style={[styles.aiIntro, { backgroundColor: colors.mint }]}><View style={[styles.aiAvatar, { backgroundColor: colors.navy }]}><Ionicons name="sparkles" size={20} color={colors.gold} /></View><View style={styles.flex}><Text style={[styles.aiIntroTitle, { color: colors.foreground }]}>{t.teacher}</Text><Text style={[styles.aiIntroHint, { color: colors.mutedForeground }]}>{t.speakingHint}</Text></View></View>{messages.map((item, index) => <View key={`${item.speaker}-${index}`} style={[styles.messageRow, item.speaker === 'you' && styles.messageRowYou]}><View style={[styles.messageBubble, { backgroundColor: item.speaker === 'you' ? colors.navy : colors.card, borderColor: colors.border }]}><Text style={[styles.messageSpeaker, { color: item.speaker === 'you' ? colors.gold : colors.primary }]}>{item.speaker === 'you' ? t.you : t.teacher}</Text><Text style={[styles.messageText, { color: item.speaker === 'you' ? '#FFFFFF' : colors.foreground }]}>{item.text}</Text></View></View>)}<View style={[styles.correctionNote, { backgroundColor: colors.accent }]}><Ionicons name="bulb-outline" size={18} color={colors.accentForeground} /><Text style={[styles.correctionText, { color: colors.foreground }]}>{language === 'si' ? 'වැරදි නම් කරුණාකර නැවත උත්සාහ කරන්න.' : language === 'ta' ? 'தவறு இருந்தால் மீண்டும் முயற்சி செய்யுங்கள்.' : 'Make a mistake? That is how we learn.'}</Text></View></ScrollView><View style={[styles.chatComposer, { backgroundColor: colors.card, borderTopColor: colors.border }]}><TextInput testID="speaking-input" value={message} onChangeText={setMessage} onSubmitEditing={sendMessage} placeholder="Type your answer..." placeholderTextColor={colors.mutedForeground} style={[styles.chatInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /><Pressable testID="send-speaking" onPress={sendMessage} style={[styles.sendButton, { backgroundColor: colors.primary }]}><Ionicons name="arrow-up" size={21} color="#FFFFFF" /></Pressable></View></KeyboardAvoidingView></View>;
+  const startListening = () => {
+    setIsListening(true);
+    setVoiceStatus(feature.listening);
+    actionHaptic();
+  };
+  const stopListening = async () => {
+    setIsListening(false);
+    setVoiceStatus(feature.readyToListen);
+    await completeTurn(message.trim() || feature.demoPhrase);
+  };
+  const sendMessage = async () => {
+    await completeTurn(message);
+  };
+  const useDemoPhrase = () => setMessage(feature.demoPhrase);
+  const clearConversation = () => {
+    setMessages([{ speaker: 'teacher', text: openingTeacherMessage(topic) }]);
+    setLastTeacherReply(openingTeacherMessage(topic));
+    setLastTranscript('');
+    setFeedback(null);
+    setMessage('');
+    setIsListening(false);
+    setVoiceStatus(feature.readyToListen);
+  };
+  const chooseTopic = (nextTopic: SpeakingTopic) => {
+    setTopic(nextTopic);
+    setMessages([{ speaker: 'teacher', text: openingTeacherMessage(nextTopic) }]);
+    setLastTeacherReply(openingTeacherMessage(nextTopic));
+    setLastTranscript('');
+    setFeedback(null);
+  };
+  const correctMyEnglish = () => {
+    if (lastTranscript) setFeedback(getSpeakingFeedback(lastTranscript, language));
+  };
+  const repeatAI = () => {
+    if (lastTeacherReply) Speech.speak(lastTeacherReply, { language: 'en-US', rate: 0.88 });
+  };
+
+  return <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <Header title={t.aiSpeaking} onBack={() => go('practice')} language={language} onLanguage={onLanguage} />
+    <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+      <ScrollView contentContainerStyle={styles.chatContent} keyboardShouldPersistTaps="handled">
+        <View style={[styles.aiIntro, { backgroundColor: colors.mint }]}>
+          <View style={[styles.aiAvatar, { backgroundColor: colors.navy }]}><Ionicons name="sparkles" size={20} color={colors.gold} /></View>
+          <View style={styles.flex}><Text style={[styles.aiIntroTitle, { color: colors.foreground }]}>{t.teacher}</Text><Text style={[styles.aiIntroHint, { color: colors.mutedForeground }]}>{t.speakingHint}</Text></View>
+        </View>
+        <Text style={[styles.selectorLabel, { color: colors.foreground }]}>{feature.speakingLevel}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorRow}>
+          {speakingLevels.map((item) => <Pressable key={item.id} testID={`speaking-level-${item.id}`} onPress={() => setLevel(item.id)} style={[styles.selectorChip, { backgroundColor: level === item.id ? colors.navy : colors.card, borderColor: level === item.id ? colors.navy : colors.border }]}><Text style={[styles.selectorText, { color: level === item.id ? '#FFFFFF' : colors.foreground }]}>{item.labels[language]}</Text></Pressable>)}
+        </ScrollView>
+        <Text style={[styles.selectorLabel, { color: colors.foreground }]}>{feature.topic}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorRow}>
+          {speakingTopics.map((item) => <Pressable key={item.id} testID={`speaking-topic-${item.id}`} onPress={() => chooseTopic(item.id)} style={[styles.selectorChip, { backgroundColor: topic === item.id ? colors.secondary : colors.card, borderColor: topic === item.id ? colors.primary : colors.border }]}><Text style={[styles.selectorText, { color: topic === item.id ? colors.primary : colors.foreground }]}>{item.labels[language]}</Text></Pressable>)}
+        </ScrollView>
+        <View style={[styles.voiceStatusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Pressable testID="microphone-button" onPress={isListening ? stopListening : startListening} style={[styles.micButton, { backgroundColor: isListening ? colors.coral : colors.secondary }]}><Ionicons name={isListening ? 'mic-off' : 'mic'} size={28} color={isListening ? '#FFFFFF' : colors.primary} /></Pressable>
+          <View style={styles.flex}><Text style={[styles.voiceStatus, { color: colors.foreground }]}>{voiceStatus}</Text><Text style={[styles.voiceMode, { color: colors.mutedForeground }]}>{AI_DEMO_MODE ? feature.demoMode : feature.liveMode}</Text></View>
+        </View>
+        <View style={styles.voiceActions}>
+          <Pressable testID="start-speaking" disabled={isListening} onPress={startListening} style={({ pressed }) => [styles.voiceAction, { backgroundColor: isListening ? colors.muted : colors.primary }, pressed && styles.pressed]}><Ionicons name="mic-outline" size={19} color="#FFFFFF" /><Text style={styles.voiceActionText}>{feature.startPractice}</Text></Pressable>
+          <Pressable testID="stop-speaking" disabled={!isListening} onPress={stopListening} style={({ pressed }) => [styles.voiceAction, { backgroundColor: isListening ? colors.navy : colors.muted }, pressed && styles.pressed]}><Ionicons name="stop-circle-outline" size={19} color={isListening ? '#FFFFFF' : colors.mutedForeground} /><Text style={[styles.voiceActionText, { color: isListening ? '#FFFFFF' : colors.mutedForeground }]}>{feature.stopSpeaking}</Text></Pressable>
+        </View>
+        <View style={styles.conversationControls}>
+          <Pressable testID="clear-conversation" onPress={clearConversation} style={[styles.controlButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Ionicons name="refresh-outline" size={16} color={colors.primary} /><Text style={[styles.controlText, { color: colors.foreground }]}>{feature.clearConversation}</Text></Pressable>
+          <Pressable testID="repeat-ai-voice" onPress={repeatAI} style={[styles.controlButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Ionicons name="volume-medium-outline" size={16} color={colors.primary} /><Text style={[styles.controlText, { color: colors.foreground }]}>{feature.repeatAI}</Text></Pressable>
+        </View>
+        <Pressable testID="demo-phrase" onPress={useDemoPhrase} style={styles.demoPhraseButton}><Ionicons name="flask-outline" size={15} color={colors.primary} /><Text style={[styles.demoPhraseText, { color: colors.primary }]}>{feature.tryDemo}</Text></Pressable>
+        {messages.map((item, index) => <View key={`${item.speaker}-${index}`} style={[styles.messageRow, item.speaker === 'you' && styles.messageRowYou]}><View style={[styles.messageBubble, { backgroundColor: item.speaker === 'you' ? colors.navy : colors.card, borderColor: colors.border }]}><Text style={[styles.messageSpeaker, { color: item.speaker === 'you' ? colors.gold : colors.primary }]}>{item.speaker === 'you' ? t.you : t.teacher}</Text><Text style={[styles.messageText, { color: item.speaker === 'you' ? '#FFFFFF' : colors.foreground }]}>{item.text}</Text>{item.speaker === 'teacher' && <Pressable onPress={() => Speech.speak(item.text, { language: 'en-US', rate: 0.88 })} style={styles.listenButton}><Ionicons name="volume-medium-outline" size={16} color={colors.primary} /><Text style={[styles.listenText, { color: colors.primary }]}>{t.listen}</Text></Pressable>}</View></View>)}
+        {lastTranscript && feedback && <View style={[styles.speakingFeedback, { backgroundColor: colors.accent }]}>
+          <View style={styles.rowBetween}><Text style={[styles.feedbackHeading, { color: colors.foreground }]}>{feature.feedback}</Text><Pressable testID="correct-my-english" onPress={correctMyEnglish} style={styles.correctButton}><Ionicons name="sparkles-outline" size={15} color={colors.primary} /><Text style={[styles.correctButtonText, { color: colors.primary }]}>{feature.correctMyEnglish}</Text></Pressable></View>
+          <View style={styles.feedbackItem}><Ionicons name="text-outline" size={17} color={colors.accentForeground} /><View style={styles.flex}><Text style={[styles.feedbackLabel, { color: colors.accentForeground }]}>{feature.transcript}</Text><Text style={[styles.feedbackValue, { color: colors.foreground }]}>{lastTranscript}</Text></View></View>
+          <View style={styles.feedbackItem}><Ionicons name="checkmark-circle-outline" size={17} color={colors.success} /><View style={styles.flex}><Text style={[styles.feedbackLabel, { color: colors.success }]}>{feature.grammarCorrection}</Text><Text style={[styles.feedbackValue, { color: colors.foreground }]}>{feedback.correction}</Text></View></View>
+          <View style={styles.feedbackItem}><Ionicons name="bulb-outline" size={17} color={colors.accentForeground} /><View style={styles.flex}><Text style={[styles.feedbackLabel, { color: colors.accentForeground }]}>{feature.explanation}</Text><Text style={[styles.feedbackValue, { color: colors.foreground }]}>{feedback.explanation}</Text></View></View>
+        </View>}
+        <View style={[styles.correctionNote, { backgroundColor: colors.accent }]}><Ionicons name="bulb-outline" size={18} color={colors.accentForeground} /><Text style={[styles.correctionText, { color: colors.foreground }]}>{feature.speakAgain}</Text></View>
+      </ScrollView>
+      <View style={[styles.chatComposer, { backgroundColor: colors.card, borderTopColor: colors.border }]}><TextInput testID="speaking-input" value={message} onChangeText={setMessage} onSubmitEditing={sendMessage} placeholder="Type your answer..." placeholderTextColor={colors.mutedForeground} style={[styles.chatInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /><Pressable testID="send-speaking" onPress={sendMessage} style={[styles.sendButton, { backgroundColor: colors.primary }]}><Ionicons name="arrow-up" size={21} color="#FFFFFF" /></Pressable></View>
+    </KeyboardAvoidingView>
+  </View>;
 }
 
 function ProgressView({ go, language, onLanguage }: { go: (view: ViewName, data?: number) => void; language: Language; onLanguage: (language: Language) => void }) {
@@ -259,8 +589,12 @@ function ProgressView({ go, language, onLanguage }: { go: (view: ViewName, data?
 function DownloadsView({ go, language, onLanguage }: { go: (view: ViewName, data?: number) => void; language: Language; onLanguage: (language: Language) => void }) {
   const colors = useColors();
   const t = getText(language);
-  const items = [{ icon: 'document-text-outline' as const, title: t.pdf, detail: 'Level 1 · Lessons 1–5', color: colors.accent }, { icon: 'musical-notes-outline' as const, title: t.audio, detail: 'Greetings & introductions', color: colors.mint }, { icon: 'document-text-outline' as const, title: t.pdf, detail: 'Level 1 · Lessons 6–10', color: colors.secondary }];
-  return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title={t.downloadsTitle} language={language} onLanguage={onLanguage} /><ScrollView contentContainerStyle={styles.scrollContent}><View style={[styles.downloadHero, { backgroundColor: colors.secondary }]}><Ionicons name="cloud-download-outline" size={30} color={colors.primary} /><Text style={[styles.downloadHeroTitle, { color: colors.foreground }]}>{t.downloadsTitle}</Text><Text style={[styles.downloadHeroHint, { color: colors.mutedForeground }]}>{t.downloadsHint}</Text></View>{items.map((item, index) => <View key={`${item.title}-${index}`} style={[styles.downloadRow, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.downloadIcon, { backgroundColor: item.color }]}><Ionicons name={item.icon} size={22} color={colors.foreground} /></View><View style={styles.flex}><Text style={[styles.downloadTitle, { color: colors.foreground }]}>{item.title}</Text><Text style={[styles.downloadDetail, { color: colors.mutedForeground }]}>{item.detail}</Text><Text style={[styles.downloadSample, { color: colors.primary }]}>{t.sample} · {t.ready}</Text></View><Pressable testID={`download-${index}`} onPress={() => Alert.alert(t.sample, `${item.title}\n${t.ready}`)} style={[styles.downloadButton, { backgroundColor: colors.navy }]}><Ionicons name="download-outline" size={18} color="#FFFFFF" /></Pressable></View>)}<View style={[styles.offlineNote, { backgroundColor: colors.accent }]}><Ionicons name="information-circle-outline" size={19} color={colors.accentForeground} /><Text style={[styles.offlineNoteText, { color: colors.foreground }]}>{t.saved}</Text></View></ScrollView><BottomNav active="downloads" go={go} language={language} /></View>;
+  const items = [
+    { icon: 'document-text-outline' as const, title: t.pdf, detail: 'Level 1 · Lessons 1–5', color: colors.accent, asset: require('../assets/downloads/lesson-1-greetings.pdf'), filename: 'englishmate-lesson-1.pdf', mimeType: 'application/pdf' },
+    { icon: 'musical-notes-outline' as const, title: t.audio, detail: 'Greetings & introductions', color: colors.mint, asset: require('../assets/downloads/spoken-english-lesson.mp3'), filename: 'englishmate-spoken-lesson.mp3', mimeType: 'audio/mpeg' },
+    { icon: 'document-text-outline' as const, title: t.pdf, detail: 'Level 1 · Lessons 6–10', color: colors.secondary, asset: require('../assets/downloads/lesson-1-greetings.pdf'), filename: 'englishmate-lesson-6-10-sample.pdf', mimeType: 'application/pdf' },
+  ];
+  return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title={t.downloadsTitle} language={language} onLanguage={onLanguage} /><ScrollView contentContainerStyle={styles.scrollContent}><View style={[styles.downloadHero, { backgroundColor: colors.secondary }]}><Ionicons name="cloud-download-outline" size={30} color={colors.primary} /><Text style={[styles.downloadHeroTitle, { color: colors.foreground }]}>{t.downloadsTitle}</Text><Text style={[styles.downloadHeroHint, { color: colors.mutedForeground }]}>{t.downloadsHint}</Text></View>{items.map((item, index) => <View key={`${item.title}-${index}`} style={[styles.downloadRow, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.downloadIcon, { backgroundColor: item.color }]}><Ionicons name={item.icon} size={22} color={colors.foreground} /></View><View style={styles.flex}><Text style={[styles.downloadTitle, { color: colors.foreground }]}>{item.title}</Text><Text style={[styles.downloadDetail, { color: colors.mutedForeground }]}>{item.detail}</Text><Text style={[styles.downloadSample, { color: colors.primary }]}>{t.sample} · {t.ready}</Text></View><Pressable testID={`download-${index}`} onPress={() => { actionHaptic(); void saveAndShareAsset(item.asset, item.filename, item.mimeType, item.title, language); }} style={[styles.downloadButton, { backgroundColor: colors.navy }]}><Ionicons name="download-outline" size={18} color="#FFFFFF" /></Pressable></View>)}<View style={[styles.offlineNote, { backgroundColor: colors.accent }]}><Ionicons name="information-circle-outline" size={19} color={colors.accentForeground} /><Text style={[styles.offlineNoteText, { color: colors.foreground }]}>{t.saved}</Text></View></ScrollView><BottomNav active="downloads" go={go} language={language} /></View>;
 }
 
 export default function App() {
@@ -338,6 +672,7 @@ const styles = StyleSheet.create({
   lessonRowTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   lessonRowHint: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 4 },
   testRow: { borderWidth: 1, borderRadius: 19, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  lockedRow: { opacity: 0.72 },
   testIcon: { width: 41, height: 41, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   testTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   testHint: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 3 },
@@ -387,6 +722,9 @@ const styles = StyleSheet.create({
   modeRow: { gap: 8, paddingVertical: 4 },
   modeChip: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9 },
   modeChipText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  exerciseBox: { borderRadius: 14, padding: 12, gap: 4 },
+  exerciseLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 0.7 },
+  exerciseText: { fontSize: 13, fontFamily: 'Inter_500Medium', lineHeight: 19 },
   writingCard: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 13 },
   writingPrompt: { fontSize: 16, fontFamily: 'Inter_700Bold', lineHeight: 22 },
   writingInput: { minHeight: 115, borderWidth: 1, borderRadius: 14, padding: 13, fontSize: 15, fontFamily: 'Inter_400Regular', lineHeight: 22 },
@@ -405,11 +743,36 @@ const styles = StyleSheet.create({
   aiAvatar: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   aiIntroTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   aiIntroHint: { fontSize: 11, lineHeight: 16, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  voiceStatusCard: { borderWidth: 1, borderRadius: 19, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  micButton: { width: 54, height: 54, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  voiceStatus: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  voiceMode: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  voiceActions: { flexDirection: 'row', gap: 10 },
+  voiceAction: { flex: 1, minHeight: 49, borderRadius: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 8 },
+  voiceActionText: { color: '#FFFFFF', fontSize: 12, fontFamily: 'Inter_700Bold' },
+  selectorLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', marginTop: 2 },
+  selectorRow: { gap: 8, paddingVertical: 2 },
+  selectorChip: { borderWidth: 1, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 9 },
+  selectorText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  conversationControls: { flexDirection: 'row', gap: 8 },
+  controlButton: { flex: 1, minHeight: 42, borderWidth: 1, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 7 },
+  controlText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
+  demoPhraseButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 3 },
+  demoPhraseText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   messageRow: { flexDirection: 'row', justifyContent: 'flex-start' },
   messageRowYou: { justifyContent: 'flex-end' },
   messageBubble: { maxWidth: '82%', borderRadius: 17, borderWidth: 1, padding: 13, gap: 5 },
   messageSpeaker: { fontSize: 10, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 0.7 },
   messageText: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_500Medium' },
+  listenButton: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 3 },
+  listenText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  speakingFeedback: { borderRadius: 16, padding: 14, gap: 11 },
+  feedbackHeading: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  correctButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingLeft: 7 },
+  correctButtonText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
+  feedbackItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  feedbackLabel: { fontSize: 10, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 0.6 },
+  feedbackValue: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_500Medium', marginTop: 2 },
   correctionNote: { borderRadius: 15, padding: 12, flexDirection: 'row', gap: 8, alignItems: 'center' },
   correctionText: { flex: 1, fontSize: 12, lineHeight: 18, fontFamily: 'Inter_500Medium' },
   chatComposer: { borderTopWidth: 1, padding: 10, flexDirection: 'row', gap: 8, alignItems: 'center' },

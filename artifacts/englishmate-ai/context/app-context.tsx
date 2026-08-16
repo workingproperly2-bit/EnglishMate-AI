@@ -49,32 +49,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsHydrated(true));
   }, []);
 
-  const update = (next: ProgressState) => {
-    setProgress(next);
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+  const update = (transform: (current: ProgressState) => ProgressState) => {
+    setProgress((current) => {
+      const next = transform(current);
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+      return next;
+    });
   };
 
   const value = useMemo<AppContextValue>(
     () => ({
       ...progress,
       isHydrated,
-      setInterfaceLanguage: (interfaceLanguage) => update({ ...progress, interfaceLanguage }),
+      setInterfaceLanguage: (interfaceLanguage) => update((current) => ({ ...current, interfaceLanguage })),
       markLessonComplete: (lessonId) => {
-        if (progress.completedLessons.includes(lessonId)) return;
-        update({ ...progress, completedLessons: [...progress.completedLessons, lessonId] });
+        update((current) => current.completedLessons.includes(lessonId)
+          ? current
+          : { ...current, completedLessons: [...current.completedLessons, lessonId] });
       },
       saveTestScore: (testId, score) => {
-        const completedTests = progress.completedTests.includes(testId)
-          ? progress.completedTests
-          : [...progress.completedTests, testId];
-        update({
-          ...progress,
-          completedTests,
-          testScores: { ...progress.testScores, [String(testId)]: score },
-        });
+        update((current) => ({
+          ...current,
+          completedTests: current.completedTests.includes(testId)
+            ? current.completedTests
+            : [...current.completedTests, testId],
+          testScores: { ...current.testScores, [String(testId)]: score },
+        }));
       },
-      incrementSpeaking: () => update({ ...progress, speakingCount: progress.speakingCount + 1 }),
-      incrementWriting: () => update({ ...progress, writingCount: progress.writingCount + 1 }),
+      incrementSpeaking: () => update((current) => ({ ...current, speakingCount: current.speakingCount + 1 })),
+      incrementWriting: () => update((current) => ({ ...current, writingCount: current.writingCount + 1 })),
     }),
     [isHydrated, progress],
   );
