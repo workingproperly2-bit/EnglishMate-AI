@@ -9,6 +9,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -20,7 +21,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { Language, useApp } from '@/context/app-context';
-import { AI_API_KEY, AI_API_URL, AI_DEMO_MODE } from '@/constants/config';
+import { AI_API_KEY, AI_API_URL, AI_DEMO_MODE, ANDROID_APK_URL } from '@/constants/config';
 
 type ViewName = 'home' | 'lessons' | 'practice' | 'progress' | 'downloads' | 'speaking' | 'writing' | 'lesson' | 'test';
 type PracticeMode = 'letters' | 'words' | 'sentences' | 'grammar' | 'paragraph';
@@ -198,6 +199,10 @@ const featureCopy = {
     grammarCategory: 'Grammar category',
     paragraphTopic: 'Paragraph topic',
     correctionDemo: 'Demo correction · no AI key needed',
+    apkDownload: 'Download Android APK',
+    apkUnavailable: 'APK download is not configured yet.',
+    apkSetup: 'Set EXPO_PUBLIC_ANDROID_APK_URL after hosting a built APK.',
+    apkError: 'The APK could not be downloaded. Please try again.',
   },
   si: {
     startSpeaking: 'කතා කිරීම ආරම්භ කරන්න',
@@ -253,6 +258,10 @@ const featureCopy = {
     grammarCategory: 'ව්‍යාකරණ කාණ්ඩය',
     paragraphTopic: 'ඡේද මාතෘකාව',
     correctionDemo: 'ආදර්ශ නිවැරදි කිරීම · AI යතුරක් අවශ්‍ය නැත',
+    apkDownload: 'Android APK බාගන්න',
+    apkUnavailable: 'APK බාගැනීම තවම සකසා නැත.',
+    apkSetup: 'APK එක සත්කාරක කළ පසු EXPO_PUBLIC_ANDROID_APK_URL සකසන්න.',
+    apkError: 'APK එක බාගත කළ නොහැක. නැවත උත්සාහ කරන්න.',
   },
   ta: {
     startSpeaking: 'பேசத் தொடங்குங்கள்',
@@ -308,6 +317,10 @@ const featureCopy = {
     grammarCategory: 'இலக்கண வகை',
     paragraphTopic: 'பத்தி தலைப்பு',
     correctionDemo: 'மாதிரி திருத்தம் · AI விசை தேவையில்லை',
+    apkDownload: 'Android APK பதிவிறக்கவும்',
+    apkUnavailable: 'APK பதிவிறக்கம் இன்னும் அமைக்கப்படவில்லை.',
+    apkSetup: 'APK-ஐ ஹோஸ்ட் செய்த பிறகு EXPO_PUBLIC_ANDROID_APK_URL அமைக்கவும்.',
+    apkError: 'APK-ஐ பதிவிறக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
   },
 };
 const iconForView: Record<ViewName, keyof typeof Ionicons.glyphMap> = { home: 'home-outline', lessons: 'book-outline', practice: 'pencil-outline', progress: 'stats-chart-outline', downloads: 'download-outline', speaking: 'chatbubbles-outline', writing: 'create-outline', lesson: 'book-outline', test: 'checkmark-circle-outline' };
@@ -510,6 +523,29 @@ async function saveAndShareAsset(moduleId: number, filename: string, mimeType: s
   }
 }
 
+async function downloadAndroidApk(language: Language) {
+  const feature = featureCopy[language];
+  if (!ANDROID_APK_URL) {
+    Alert.alert(feature.apkUnavailable, feature.apkSetup);
+    return;
+  }
+
+  try {
+    if (Platform.OS === 'android' && FileSystem.documentDirectory && await Sharing.isAvailableAsync()) {
+      const targetUri = `${FileSystem.documentDirectory}englishmate-ai.apk`;
+      const download = await FileSystem.downloadAsync(ANDROID_APK_URL, targetUri);
+      await Sharing.shareAsync(download.uri, {
+        mimeType: 'application/vnd.android.package-archive',
+        dialogTitle: feature.apkDownload,
+      });
+      return;
+    }
+    await Linking.openURL(ANDROID_APK_URL);
+  } catch {
+    Alert.alert(feature.apkDownload, feature.apkError);
+  }
+}
+
 function Header({ title, onBack, language, onLanguage }: { title: string; onBack?: () => void; language: Language; onLanguage: (language: Language) => void }) {
   const colors = useColors();
   const t = getText(language);
@@ -689,7 +725,7 @@ function WritingView({ go, language, onLanguage }: { go: (view: ViewName, data?:
 }
 
 function LetterList({ colors, t }: { colors: ReturnType<typeof useColors>; t: typeof copy.en }) {
-  return <View style={[styles.letterPracticeCard, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={styles.rowBetween}><View><Text style={[styles.writingPrompt, { color: colors.foreground }]}>{t.learnAZ}</Text><Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{t.pronunciation}: “ay, bee, see...”</Text></View><Ionicons name="volume-medium-outline" size={24} color={colors.primary} /></View><View style={styles.alphabetGrid}>{alphabet.map(([upper, lower, word]) => <View key={upper} style={[styles.letterTile, { backgroundColor: colors.secondary }]}><Text style={[styles.tileUpper, { color: colors.foreground }]}>{upper}</Text><Text style={[styles.tileLower, { color: colors.primary }]}>{lower}</Text><Text style={[styles.tileWord, { color: colors.mutedForeground }]}>{word}</Text></View>)}</View></View>;
+  return <View style={[styles.letterPracticeCard, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={styles.rowBetween}><View><Text style={[styles.writingPrompt, { color: colors.foreground }]}>{t.learnAZ}</Text><Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{t.pronunciation}: “ay, bee, see...”</Text></View><Ionicons name="volume-medium-outline" size={24} color={colors.primary} /></View><View style={styles.alphabetGrid}>{alphabet.map((item) => <View key={item.upper} style={[styles.letterTile, { backgroundColor: colors.secondary }]}><Text style={[styles.tileUpper, { color: colors.foreground }]}>{item.upper}</Text><Text style={[styles.tileLower, { color: colors.primary }]}>{item.lower}</Text><Text style={[styles.tileWord, { color: colors.mutedForeground }]}>{item.words[0]}</Text></View>)}</View></View>;
 }
 
 function ResultLine({ label, value, colors, icon }: { label: string; value: string; colors: ReturnType<typeof useColors>; icon: keyof typeof Ionicons.glyphMap }) {
@@ -817,12 +853,26 @@ function ProgressView({ go, language, onLanguage }: { go: (view: ViewName, data?
 function DownloadsView({ go, language, onLanguage }: { go: (view: ViewName, data?: number) => void; language: Language; onLanguage: (language: Language) => void }) {
   const colors = useColors();
   const t = getText(language);
+  const feature = featureCopy[language];
   const items = [
     { icon: 'document-text-outline' as const, title: t.pdf, detail: 'Level 1 · Lessons 1–5', color: colors.accent, asset: require('../assets/downloads/lesson-1-greetings.pdf'), filename: 'englishmate-lesson-1.pdf', mimeType: 'application/pdf' },
     { icon: 'musical-notes-outline' as const, title: t.audio, detail: 'Greetings & introductions', color: colors.mint, asset: require('../assets/downloads/spoken-english-lesson.mp3'), filename: 'englishmate-spoken-lesson.mp3', mimeType: 'audio/mpeg' },
     { icon: 'document-text-outline' as const, title: t.pdf, detail: 'Level 1 · Lessons 6–10', color: colors.secondary, asset: require('../assets/downloads/lesson-1-greetings.pdf'), filename: 'englishmate-lesson-6-10-sample.pdf', mimeType: 'application/pdf' },
   ];
-  return <View style={[styles.screen, { backgroundColor: colors.background }]}><Header title={t.downloadsTitle} language={language} onLanguage={onLanguage} /><ScrollView contentContainerStyle={styles.scrollContent}><View style={[styles.downloadHero, { backgroundColor: colors.secondary }]}><Ionicons name="cloud-download-outline" size={30} color={colors.primary} /><Text style={[styles.downloadHeroTitle, { color: colors.foreground }]}>{t.downloadsTitle}</Text><Text style={[styles.downloadHeroHint, { color: colors.mutedForeground }]}>{t.downloadsHint}</Text></View>{items.map((item, index) => <View key={`${item.title}-${index}`} style={[styles.downloadRow, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.downloadIcon, { backgroundColor: item.color }]}><Ionicons name={item.icon} size={22} color={colors.foreground} /></View><View style={styles.flex}><Text style={[styles.downloadTitle, { color: colors.foreground }]}>{item.title}</Text><Text style={[styles.downloadDetail, { color: colors.mutedForeground }]}>{item.detail}</Text><Text style={[styles.downloadSample, { color: colors.primary }]}>{t.sample} · {t.ready}</Text></View><Pressable testID={`download-${index}`} onPress={() => { actionHaptic(); void saveAndShareAsset(item.asset, item.filename, item.mimeType, item.title, language); }} style={[styles.downloadButton, { backgroundColor: colors.navy }]}><Ionicons name="download-outline" size={18} color="#FFFFFF" /></Pressable></View>)}<View style={[styles.offlineNote, { backgroundColor: colors.accent }]}><Ionicons name="information-circle-outline" size={19} color={colors.accentForeground} /><Text style={[styles.offlineNoteText, { color: colors.foreground }]}>{t.saved}</Text></View></ScrollView><BottomNav active="downloads" go={go} language={language} /></View>;
+  return <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <Header title={t.downloadsTitle} language={language} onLanguage={onLanguage} />
+    <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={[styles.downloadHero, { backgroundColor: colors.secondary }]}><Ionicons name="cloud-download-outline" size={30} color={colors.primary} /><Text style={[styles.downloadHeroTitle, { color: colors.foreground }]}>{t.downloadsTitle}</Text><Text style={[styles.downloadHeroHint, { color: colors.mutedForeground }]}>{t.downloadsHint}</Text></View>
+      {items.map((item, index) => <View key={`${item.title}-${index}`} style={[styles.downloadRow, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.downloadIcon, { backgroundColor: item.color }]}><Ionicons name={item.icon} size={22} color={colors.foreground} /></View><View style={styles.flex}><Text style={[styles.downloadTitle, { color: colors.foreground }]}>{item.title}</Text><Text style={[styles.downloadDetail, { color: colors.mutedForeground }]}>{item.detail}</Text><Text style={[styles.downloadSample, { color: colors.primary }]}>{t.sample} · {t.ready}</Text></View><Pressable testID={`download-${index}`} onPress={() => { actionHaptic(); void saveAndShareAsset(item.asset, item.filename, item.mimeType, item.title, language); }} style={[styles.downloadButton, { backgroundColor: colors.navy }]}><Ionicons name="download-outline" size={18} color="#FFFFFF" /></Pressable></View>)}
+      <View style={[styles.downloadRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.downloadIcon, { backgroundColor: colors.mint }]}><Ionicons name="logo-android" size={22} color={colors.success} /></View>
+        <View style={styles.flex}><Text style={[styles.downloadTitle, { color: colors.foreground }]}>{feature.apkDownload}</Text><Text style={[styles.downloadDetail, { color: colors.mutedForeground }]}>{ANDROID_APK_URL ? 'Android installer file' : feature.apkUnavailable}</Text><Text style={[styles.downloadSample, { color: colors.primary }]}>{ANDROID_APK_URL ? 'Ready to download' : feature.apkSetup}</Text></View>
+        <Pressable testID="download-android-apk" onPress={() => { actionHaptic(); void downloadAndroidApk(language); }} style={[styles.downloadButton, { backgroundColor: ANDROID_APK_URL ? colors.navy : colors.muted }]}><Ionicons name="download-outline" size={18} color={ANDROID_APK_URL ? '#FFFFFF' : colors.mutedForeground} /></Pressable>
+      </View>
+      <View style={[styles.offlineNote, { backgroundColor: colors.accent }]}><Ionicons name="information-circle-outline" size={19} color={colors.accentForeground} /><Text style={[styles.offlineNoteText, { color: colors.foreground }]}>{t.saved}</Text></View>
+    </ScrollView>
+    <BottomNav active="downloads" go={go} language={language} />
+  </View>;
 }
 
 export default function App() {

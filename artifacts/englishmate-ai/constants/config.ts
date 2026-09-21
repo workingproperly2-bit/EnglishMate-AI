@@ -9,3 +9,11 @@
 export const AI_API_URL = process.env.EXPO_PUBLIC_AI_API_URL ?? '';
 export const AI_API_KEY = process.env.EXPO_PUBLIC_AI_API_KEY ?? '';
 export const AI_DEMO_MODE = !AI_API_URL;
+
+/**
+ * Optional hosted Android APK URL.
+ *
+ * Set EXPO_PUBLIC_ANDROID_APK_URL after publishing a built APK to a file
+ * host. The Downloads screen stays usable when this is empty.
+ */
+export const ANDROID_APK_URL = process.env.EXPO_PUBLIC_ANDROID_APK_URL ?? '';
