@@ -31,7 +31,8 @@ jobs:
         run: pnpm install --no-frozen-lockfile
 
       - name: Generate Android project
-        run: CI=1 npx expo prebuild --platform android --non-interactive
+        working-directory: artifacts/englishmate-ai
+        run: CI=1 pnpm exec expo prebuild --platform android
 
       - name: Build debug APK
         working-directory: android
